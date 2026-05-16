@@ -331,7 +331,7 @@ var CHAT_KEY = 'lin_shen_chat_history_v4';
 var MSG_ID_COUNTER = 0;
 
 function loadConfig() {
-  try { var r = localStorage.getItem(LS_KEY); return r ? JSON.parse(r) : null; } catch(e) {}
+  try { var r = localStorage.getItem(LS_KEY); if (r) return JSON.parse(r); } catch(e) {}
   return {
     apiKey: '',
     apiUrl: 'https://api.deepseek.com/v1/chat/completions',
