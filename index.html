@@ -602,8 +602,7 @@ async function callEbbingFlow(userMessage) {
   var data = await resp.json();
   var choice = data.choices[0];
   var message = choice.message;
-  // EbbingFlow doesn't currently return reasoning_content
-  return { content: message.content || '', thinking: '' };
+  return { content: message.content || '', thinking: message.reasoning_content || '' };
 }
 
 // ── Send ──
