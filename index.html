@@ -261,6 +261,7 @@ body {
     </div>
   </div>
   <div class="header-right">
+    <button class="icon-btn" id="memoryBtn" onclick="window.open('http://localhost:8000/monitor','_blank')" title="记忆管理面板" style="display:none;">📊</button>
     <button class="icon-btn" onclick="exportMarkdown()" title="导出聊天记录">📥</button>
     <button class="icon-btn" onclick="showClearConfirm()" title="清除所有聊天">🗑</button>
     <button class="icon-btn" onclick="openSettings()" title="设置">⚙</button>
@@ -683,6 +684,8 @@ function updateMemoryStatus() {
     statusEl.textContent = config.useMemory ? '记忆引擎 · 在线' : '在线 · 在等你';
     statusEl.style.color = config.useMemory ? '#a78bfa' : '';
   }
+  var memBtn = document.getElementById('memoryBtn');
+  if (memBtn) memBtn.style.display = config.useMemory ? 'flex' : 'none';
 }
 
 function applyAppearance() {
