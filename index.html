@@ -276,6 +276,7 @@ body {
     <button class="icon-btn" id="memoryBtn" onclick="window.open('http://localhost:8000/monitor','_blank')" title="记忆管理面板" style="display:none;">📊</button>
     <button class="icon-btn" onclick="exportMarkdown()" title="导出聊天记录">📥</button>
     <button class="icon-btn" onclick="showClearConfirm()" title="清除所有聊天">🗑</button>
+    <button class="icon-btn" onclick="openAppearance()" title="外观">🎨</button>
     <button class="icon-btn" onclick="openSettings()" title="设置">⚙</button>
   </div>
 </div>
@@ -315,28 +316,6 @@ body {
   <div class="settings-panel">
     <h3>⚙ 设置</h3>
     <div>
-      <label>昵称</label>
-      <input type="text" id="nicknameInput" placeholder="林深" maxlength="20">
-    </div>
-    <div>
-      <label>头像（emoji）</label>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input type="text" id="avatarInput" placeholder="🌙" maxlength="4" style="flex:1;">
-        <span style="color:var(--text-dim);font-size:12px;">或</span>
-        <label class="btn" style="white-space:nowrap;cursor:pointer;margin:0;">📷 上传<input type="file" id="avatarFileInput" accept="image/*" onchange="handleAvatarUpload()" style="display:none;"></label>
-      </div>
-      <div class="help-text">emoji 或上传图片，图片优先显示</div>
-    </div>
-    <div>
-      <label>聊天背景</label>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input type="color" id="bgColorInput" value="#0f0f14" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" onchange="previewBgColor()">
-        <input type="text" id="bgImageInput" placeholder="图片链接（可选）" style="flex:1;">
-        <label class="btn" style="white-space:nowrap;cursor:pointer;margin:0;">📷<input type="file" id="bgFileInput" accept="image/*" onchange="handleBgUpload()" style="display:none;"></label>
-      </div>
-      <div class="help-text">纯色或图片链接。图片优先于纯色。留空使用默认深色主题。</div>
-    </div>
-    <div>
       <label>DeepSeek API Key</label>
       <input type="password" id="apiKeyInput" placeholder="sk-...">
       <div class="error-msg" id="apiKeyError">需要先设置 API Key 才能对话</div>
@@ -368,6 +347,39 @@ body {
     <div class="settings-actions">
       <button class="btn" onclick="closeSettings()">取消</button>
       <button class="btn primary" onclick="saveSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Appearance -->
+<div class="settings-overlay" id="appearanceOverlay" onclick="if(event.target===this)closeAppearance()">
+  <div class="settings-panel">
+    <h3>🎨 外观</h3>
+    <div>
+      <label>昵称</label>
+      <input type="text" id="nicknameInput" placeholder="林深" maxlength="20">
+    </div>
+    <div>
+      <label>头像</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="avatarInput" placeholder="🌙" maxlength="4" style="flex:1;">
+        <span style="color:var(--text-dim);font-size:12px;">或</span>
+        <label class="btn" style="white-space:nowrap;cursor:pointer;margin:0;">📷 上传<input type="file" id="avatarFileInput" accept="image/*" onchange="handleAvatarUpload()" style="display:none;"></label>
+      </div>
+      <div class="help-text">emoji 或上传图片，图片优先显示</div>
+    </div>
+    <div>
+      <label>聊天背景</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="color" id="bgColorInput" value="#0f0f14" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" onchange="previewBgColor()">
+        <input type="text" id="bgImageInput" placeholder="图片链接（可选）" style="flex:1;">
+        <label class="btn" style="white-space:nowrap;cursor:pointer;margin:0;">📷<input type="file" id="bgFileInput" accept="image/*" onchange="handleBgUpload()" style="display:none;"></label>
+      </div>
+      <div class="help-text">纯色或图片链接。图片优先于纯色。</div>
+    </div>
+    <div class="settings-actions">
+      <button class="btn" onclick="closeAppearance()">取消</button>
+      <button class="btn primary" onclick="saveAppearance()">保存</button>
     </div>
   </div>
 </div>
@@ -697,13 +709,7 @@ async function sendMessage() {
   input.disabled = false; btn.disabled = false;
   input.focus();
 }
-
-// ── Settings ──
 function openSettings() {
-  $('nicknameInput').value = config.nickname || '林深';
-  $('avatarInput').value = config.avatar || '🌙';
-  $('bgColorInput').value = config.bgColor || '#0f0f14';
-  $('bgImageInput').value = config.bgImage || '';
   $('apiKeyInput').value = config.apiKey;
   $('apiUrlInput').value = config.apiUrl;
   $('modelInput').value = config.model;
@@ -714,25 +720,45 @@ function openSettings() {
   var err = $('apiKeyError'); if (err) err.classList.remove('show');
   $('settingsOverlay').classList.add('show');
 }
+
 function closeSettings() { $('settingsOverlay').classList.remove('show'); }
+
 function saveSettings() {
   config.apiKey = $('apiKeyInput').value.trim();
   config.apiUrl = $('apiUrlInput').value.trim() || 'https://api.deepseek.com/v1/chat/completions';
   config.model = $('modelInput').value.trim() || 'deepseek-chat';
-  config.nickname = $('nicknameInput').value.trim() || '林深';
-  config.avatar = $('avatarInput').value.trim() || '🌙';
-  config.bgColor = $('bgColorInput').value || '#0f0f14';
-  config.bgImage = $('bgImageInput').value.trim();
   config.useMemory = $('memoryToggle').checked;
   config.memoryUrl = $('memoryUrlInput').value.trim() || 'http://localhost:8000/v1/chat/completions';
   config.systemPrompt = $('systemPromptInput').value.trim();
   saveConfig(config);
-  applyAppearance();
   updateMemoryStatus();
   var err = $('apiKeyError'); if (err) err.classList.remove('show');
   closeSettings();
   showToast('设置已保存 ✓');
   var inp = $('userInput'); if (inp) inp.focus();
+}
+
+// ── Appearance ──
+function openAppearance() {
+  $('nicknameInput').value = config.nickname || '林深';
+  $('avatarInput').value = config.avatar || '🌙';
+  $('bgColorInput').value = config.bgColor || '#0f0f14';
+  $('bgImageInput').value = config.bgImage || '';
+  $('appearanceOverlay').classList.add('show');
+}
+
+function closeAppearance() { $('appearanceOverlay').classList.remove('show'); }
+
+function saveAppearance() {
+  config.nickname = $('nicknameInput').value.trim() || '林深';
+  config.avatar = $('avatarInput').value.trim() || '🌙';
+  config.bgColor = $('bgColorInput').value || '#0f0f14';
+  config.bgImage = $('bgImageInput').value.trim();
+  // avatarImage is set by handleAvatarUpload
+  saveConfig(config);
+  applyAppearance();
+  closeAppearance();
+  showToast('外观已保存 ✓');
 }
 
 function toggleMemoryMode() {
