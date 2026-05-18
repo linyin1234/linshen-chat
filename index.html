@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>林深</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root {
   --bg: #0f0f14;
@@ -471,6 +472,83 @@ for (var i = 0; i < messages.length; i++) {
 }
 if (messages.length > 0) MSG_ID_COUNTER = Math.max.apply(null, messages.map(function(m){return m._id||0;}));
 
+// ── Supabase Sync ──
+var SUPABASE_URL = 'https://vsxpshxhcqsivtccpsrc.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_BLnL83OEM5bHfuWLf98sBw_0kAiUEa0';
+var supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+var syncEnabled = !!supabase;
+
+async function syncFromSupabase() {
+  if (!syncEnabled) return;
+  try {
+    // Pull messages from Supabase
+    var resp = await supabase.from('messages').select('*').order('msg_id', {ascending: true});
+    if (resp.error) { console.error('sync pull error:', resp.error); return; }
+    var remote = resp.data || [];
+    if (remote.length === 0) return;
+
+    // Merge: Supabase wins for existing msg_ids, local-extra gets uploaded later
+    var merged = [];
+    var localMap = {};
+    for (var i = 0; i < messages.length; i++) localMap[messages[i]._id] = messages[i];
+
+    var remoteIds = {};
+    for (var i = 0; i < remote.length; i++) {
+      var r = remote[i];
+      remoteIds[r.msg_id] = true;
+      merged.push({ _id: r.msg_id, role: r.role, content: r.content, thinking: r.thinking || '', time: r.time || '' });
+    }
+    // Add local messages not in remote
+    for (var i = 0; i < messages.length; i++) {
+      if (!remoteIds[messages[i]._id]) merged.push(messages[i]);
+    }
+    // Sort by _id
+    merged.sort(function(a,b){ return a._id - b._id; });
+    messages = merged;
+    if (messages.length > 0) MSG_ID_COUNTER = Math.max.apply(null, messages.map(function(m){return m._id||0;}));
+
+    // Pull config
+    var cfgResp = await supabase.from('config').select('config_data').eq('id', 1).maybeSingle();
+    if (cfgResp.data && cfgResp.data.config_data) {
+      var remoteCfg = cfgResp.data.config_data;
+      // Merge: remote wins for most fields, but keep local keys not in remote
+      for (var k in remoteCfg) {
+        if (remoteCfg.hasOwnProperty(k)) config[k] = remoteCfg[k];
+      }
+    }
+    saveMessages(messages);
+    saveConfig(config);
+    applyAppearance();
+    updateMemoryStatus();
+    renderAllMessages();
+    showToast('已同步 ' + remote.length + ' 条消息');
+  } catch(e) { console.error('sync error:', e); }
+}
+
+async function syncMessageToSupabase(msg) {
+  if (!syncEnabled) return;
+  try {
+    await supabase.from('messages').upsert({
+      msg_id: msg._id, role: msg.role, content: msg.content,
+      thinking: msg.thinking || '', time: msg.time || ''
+    }, {onConflict: 'msg_id'});
+  } catch(e) { console.error('sync msg error:', e); }
+}
+
+async function syncConfigToSupabase() {
+  if (!syncEnabled) return;
+  try {
+    await supabase.from('config').upsert({id: 1, config_data: config}, {onConflict: 'id'});
+  } catch(e) { console.error('sync cfg error:', e); }
+}
+
+async function deleteMessageFromSupabase(msgId) {
+  if (!syncEnabled) return;
+  try {
+    await supabase.from('messages').delete().eq('msg_id', msgId);
+  } catch(e) { console.error('sync del error:', e); }
+}
+
 function $(id) { return document.getElementById(id); }
 function scrollToBottom() { var c = $('chat'); if (c) c.scrollTop = c.scrollHeight; }
 function timeStr() {
@@ -563,6 +641,7 @@ function deleteMessage(id, event) {
     if (messages[i]._id === id) { messages.splice(i, 1); break; }
   }
   saveMessages(messages);
+  deleteMessageFromSupabase(id);
   // Remove DOM element
   var el = document.querySelector('.msg[data-msg-id="' + id + '"]');
   if (el) el.remove();
@@ -605,6 +684,7 @@ function hideClearConfirm() { $('clearConfirm').classList.remove('show'); }
 function clearAllMessages() {
   messages = [];
   saveMessages(messages);
+  if (syncEnabled) supabase.from('messages').delete().neq('msg_id', -1).catch(function(){});
   hideClearConfirm();
   renderAllMessages();
   showToast('聊天记录已清除');
@@ -733,6 +813,7 @@ async function sendMessage() {
   insertTimeSeparator(userMsg, prevMsg ? prevMsg.time : null);
   renderMessageRaw(userMsg);
   saveMessages(messages);
+  syncMessageToSupabase(userMsg);
   scrollToBottom();
 
   showTyping(true);
@@ -743,6 +824,7 @@ async function sendMessage() {
     messages.push(himMsg);
     renderMessageRaw(himMsg);
     saveMessages(messages);
+    syncMessageToSupabase(himMsg);
     scrollToBottom();
   } catch(e) {
     showTyping(false);
@@ -774,6 +856,7 @@ function saveSettings() {
   config.memoryUrl = $('memoryUrlInput').value.trim() || 'http://localhost:8000/v1/chat/completions';
   config.systemPrompt = $('systemPromptInput').value.trim();
   saveConfig(config);
+  syncConfigToSupabase();
   updateMemoryStatus();
   var err = $('apiKeyError'); if (err) err.classList.remove('show');
   closeSettings();
@@ -814,6 +897,7 @@ function saveAppearance() {
   config.inputBarColor = $('inputBarColorInput').value || '#1a1a24';
   config.inputBarOpacity = parseInt($('inputBarOpacityInput').value) || 100;
   saveConfig(config);
+  syncConfigToSupabase();
   applyAppearance();
   closeAppearance();
   showToast('外观已保存 ✓');
@@ -935,7 +1019,12 @@ applyAppearance();
 updateMemoryStatus();
 renderAllMessages();
 var inp = $('userInput'); if (inp) inp.focus();
-if (!config.apiKey) { setTimeout(openSettings, 800); }
+if (!config.apiKey && !config.useMemory) { setTimeout(openSettings, 800); }
+// Auto-sync from Supabase
+syncFromSupabase().then(function() {
+  renderAllMessages();
+  scrollToBottom();
+});
 </script>
 </body>
 </html>
