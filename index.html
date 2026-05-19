@@ -202,6 +202,7 @@ body {
       <div class="welcome-bar">
         <div class="greeting" id="greetingText">下午好，茵</div>
         <div class="date-sub" id="dateText"></div>
+        <div style="font-size:32px;font-weight:200;margin-top:8px;letter-spacing:2px;" id="clockDisplay">00:00</div>
       </div>
       <div class="home-grid">
         <div class="home-card full" id="calendarCard">
@@ -250,7 +251,7 @@ body {
         <button class="icon-btn" id="memoryBtn" onclick="window.open('http://localhost:8000/monitor','_blank')" title="记忆管理面板" style="display:none;">📊</button>
         <button class="icon-btn" onclick="exportMarkdown()" title="导出聊天记录">📥</button>
         <button class="icon-btn" onclick="showClearConfirm()" title="清除所有聊天">🗑</button>
-        <button class="icon-btn" onclick="navigateTo('skin')" title="外观">🎨</button>
+        <button class="icon-btn" onclick="openMiniSkin()" title="外观">🎨</button>
         <button class="icon-btn" onclick="navigateTo('settings')" title="设置">⚙</button>
       </div>
     </div>
@@ -333,10 +334,52 @@ body {
     <button class="nav-item" data-page="skin"><span class="ni">🎨</span>皮肤</button>
     <button class="nav-item" data-page="finance"><span class="ni">💰</span>记账</button>
     <button class="nav-item" data-page="health"><span class="ni">❤️</span>健康</button>
-    <button class="nav-item" data-page="calendar"><span class="ni">📅</span>日历</button>
     <button class="nav-item" data-page="settings"><span class="ni">⚙</span>设置</button>
   </nav>
 
+</div>
+
+<!-- Mini skin panel (chat page overlay) -->
+<div class="settings-overlay" id="miniSkinOverlay" onclick="if(event.target===this)closeMiniSkin()">
+  <div class="settings-panel">
+    <h3>🎨 快速外观</h3>
+    <div>
+      <label>我的气泡</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="color" id="miniBubbleMeColor" value="#a78bfa" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" oninput="previewMiniBubbles()">
+        <span style="color:var(--text-dim);font-size:12px;">透明度</span>
+        <input type="range" id="miniBubbleMeOpacity" min="5" max="40" value="15" style="flex:1;" oninput="previewMiniBubbles()">
+      </div>
+    </div>
+    <div>
+      <label>他的气泡</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="color" id="miniBubbleHimColor" value="#1a1a2e" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" oninput="previewMiniBubbles()">
+        <span style="color:var(--text-dim);font-size:12px;">透明度</span>
+        <input type="range" id="miniBubbleHimOpacity" min="30" max="100" value="100" style="flex:1;" oninput="previewMiniBubbles()">
+      </div>
+    </div>
+    <div>
+      <label>顶栏颜色</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="color" id="miniBarColor" value="#1a1a24" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" oninput="previewMiniBar()">
+        <span style="color:var(--text-dim);font-size:12px;">透明度</span>
+        <input type="range" id="miniBarOpacity" min="50" max="100" value="100" style="flex:1;" oninput="previewMiniBar()">
+      </div>
+    </div>
+    <div>
+      <label>输入栏颜色</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="color" id="miniInputBarColor" value="#1a1a24" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" oninput="previewMiniInputBar()">
+        <span style="color:var(--text-dim);font-size:12px;">透明度</span>
+        <input type="range" id="miniInputBarOpacity" min="50" max="100" value="100" style="flex:1;" oninput="previewMiniInputBar()">
+      </div>
+    </div>
+    <div class="settings-actions">
+      <button class="btn" onclick="closeMiniSkin()">取消</button>
+      <button class="btn primary" onclick="saveMiniSkin()">保存</button>
+    </div>
+  </div>
 </div>
 
 <!-- Confirm dialog -->
@@ -459,6 +502,16 @@ function renderCalendar() {
 }
 function calPrevMonth() { calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
 function calNextMonth() { calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
+
+// Clock
+function tickClock() {
+  var n = new Date();
+  var h = String(n.getHours()).padStart(2,'0');
+  var m = String(n.getMinutes()).padStart(2,'0');
+  var s = String(n.getSeconds()).padStart(2,'0');
+  var el = $('clockDisplay');
+  if (el) el.textContent = h + ':' + m + ':' + s;
+}
 
 // Home page greeting
 function updateGreeting() {
@@ -708,6 +761,52 @@ function saveSkinPage() {
   showToast('外观已保存 ✓');
 }
 
+// ── Mini skin (chat page overlay) ──
+function openMiniSkin() {
+  $('miniBubbleMeColor').value = config.bubbleMeColor || '#a78bfa';
+  $('miniBubbleMeOpacity').value = config.bubbleMeOpacity || 15;
+  $('miniBubbleHimColor').value = config.bubbleHimColor || '#1a1a2e';
+  $('miniBubbleHimOpacity').value = config.bubbleHimOpacity || 100;
+  $('miniBarColor').value = config.barColor || '#1a1a24';
+  $('miniBarOpacity').value = config.barOpacity || 100;
+  $('miniInputBarColor').value = config.inputBarColor || '#1a1a24';
+  $('miniInputBarOpacity').value = config.inputBarOpacity || 100;
+  $('miniSkinOverlay').classList.add('show');
+}
+function closeMiniSkin() {
+  $('miniSkinOverlay').classList.remove('show');
+  // Revert to saved appearance
+  applyAppearance();
+}
+function saveMiniSkin() {
+  config.bubbleMeColor = $('miniBubbleMeColor').value || '#a78bfa';
+  config.bubbleMeOpacity = parseInt($('miniBubbleMeOpacity').value) || 15;
+  config.bubbleHimColor = $('miniBubbleHimColor').value || '#1a1a2e';
+  config.bubbleHimOpacity = parseInt($('miniBubbleHimOpacity').value) || 100;
+  config.barColor = $('miniBarColor').value || '#1a1a24';
+  config.barOpacity = parseInt($('miniBarOpacity').value) || 100;
+  config.inputBarColor = $('miniInputBarColor').value || '#1a1a24';
+  config.inputBarOpacity = parseInt($('miniInputBarOpacity').value) || 100;
+  saveConfig(config); syncConfigToSupabase();
+  applyAppearance();
+  closeMiniSkin();
+  showToast('外观已保存 ✓');
+}
+function previewMiniBubbles() {
+  var meC=$('miniBubbleMeColor').value,meO=parseInt($('miniBubbleMeOpacity').value||15)/100;
+  var himC=$('miniBubbleHimColor').value,himO=parseInt($('miniBubbleHimOpacity').value||100)/100;
+  document.documentElement.style.setProperty('--bubble-me',hexToRgba(meC,meO));
+  document.documentElement.style.setProperty('--bubble-him',hexToRgba(himC,himO));
+}
+function previewMiniBar() {
+  var c=$('miniBarColor').value,o=parseInt($('miniBarOpacity').value||100)/100;
+  document.documentElement.style.setProperty('--surface',hexToRgba(c,o));
+}
+function previewMiniInputBar() {
+  var c=$('miniInputBarColor').value,o=parseInt($('miniInputBarOpacity').value||100)/100;
+  document.documentElement.style.setProperty('--input-surface',hexToRgba(c,o));
+}
+
 // ═══════════════════════════════════════════
 //  APPEARANCE
 // ═══════════════════════════════════════════
@@ -772,6 +871,8 @@ updateMemoryStatus();
 renderAllMessages();
 renderCalendar();
 updateGreeting();
+tickClock();
+setInterval(tickClock, 1000);
 var inp = $('userInput'); if (inp) inp.focus();
 if (!config.apiKey && !config.useMemory) { setTimeout(function(){ navigateTo('settings'); }, 800); }
 syncFromSupabase().then(function() { renderAllMessages(); scrollMsgBottom(); });
