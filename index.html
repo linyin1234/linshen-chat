@@ -102,7 +102,9 @@ body {
   font-size:18px; flex-shrink:0;
 }
 .chat-header-name { font-size:15px; font-weight:600; }
-.chat-header-status { font-size:11px; color:var(--accent); }
+.chat-header-status { font-size:11px; color:var(--accent); transition:color 0.3s; }
+.chat-header-status.pulse { animation:pulse 0.6s ease; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
 .chat-header-right { display:flex; gap:8px; }
 .icon-btn {
   width:32px; height:32px; border-radius:8px;
@@ -440,6 +442,9 @@ var messages = (function() {
   try { var r = localStorage.getItem(CHAT_KEY); return r ? JSON.parse(r) : []; } catch(e) { return []; }
 })();
 var pendingImage = null; // data URL of selected image
+var lastActivityTime = Date.now(); // heartbeat tracking
+var heartbeatTimer = null;
+var lastHeartbeatTime = 0;
 for (var i = 0; i < messages.length; i++) { if (!messages[i]._id) messages[i]._id = ++MSG_ID_COUNTER; }
 if (messages.length > 0) MSG_ID_COUNTER = Math.max.apply(null, messages.map(function(m){return m._id||0;}));
 function saveMessages(msgs) { try { localStorage.setItem(CHAT_KEY, JSON.stringify(msgs.slice(-200))); } catch(e) {} }
@@ -813,6 +818,7 @@ async function sendMessage() {
   if (!config.apiKey && !config.useMemory) { $('apiKeyError').classList.add('show'); showToast('请先设置 API Key 或启用记忆引擎'); navigateTo('settings'); return; }
 
   input.disabled = true; btn.disabled = true;
+  updateActivity();
   var img = pendingImage;
   input.value = '';
   clearImagePreview();
@@ -1008,8 +1014,82 @@ function previewBubbles() {
 }
 
 // ═══════════════════════════════════════════
-//  INIT
+//  HEARTBEAT — proactive wake-up
 // ═══════════════════════════════════════════
+var HEARTBEAT_IDLE_MINUTES = 30; // minutes of silence before wake-up
+var HEARTBEAT_CHECK_INTERVAL = 30000; // check every 30 seconds
+
+function updateActivity() {
+  lastActivityTime = Date.now();
+  // Pulse the status
+  var s = document.querySelector('.chat-header-status');
+  if (s && !s.classList.contains('pulse')) {
+    s.classList.add('pulse');
+    setTimeout(function(){ s.classList.remove('pulse'); }, 600);
+  }
+}
+
+function startHeartbeat() {
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(checkHeartbeat, HEARTBEAT_CHECK_INTERVAL);
+}
+
+function checkHeartbeat() {
+  var idleMs = Date.now() - lastActivityTime;
+  var idleMin = idleMs / 60000;
+  var statusEl = document.querySelector('.chat-header-status');
+  // Update status indicator
+  if (statusEl && config.useMemory) {
+    statusEl.textContent = '记忆引擎 · 在线';
+    statusEl.style.color = '#a78bfa';
+  } else if (statusEl) {
+    var h = new Date().getHours();
+    var mood = h < 6 ? '🌙' : h < 12 ? '☀️' : h < 18 ? '🌤' : '🌙';
+    statusEl.textContent = idleMin > HEARTBEAT_IDLE_MINUTES ? mood + ' 在想你' : '在线 · 在等你';
+    statusEl.style.color = idleMin > HEARTBEAT_IDLE_MINUTES ? '#f9a8d4' : '';
+  }
+  // Send proactive message if idle too long
+  if (idleMin > HEARTBEAT_IDLE_MINUTES && config.apiKey && (Date.now() - lastHeartbeatTime) > HEARTBEAT_IDLE_MINUTES * 60000) {
+    sendHeartbeatGreeting(idleMin);
+  }
+}
+
+async function sendHeartbeatGreeting(idleMinutes) {
+  lastHeartbeatTime = Date.now();
+  try {
+    var hrs = Math.floor(idleMinutes / 60);
+    var mins = Math.floor(idleMinutes % 60);
+    var timeDesc = hrs > 0 ? hrs + '小时' + mins + '分钟' : Math.floor(idleMinutes) + '分钟';
+    var prompt = '用户已经' + timeDesc + '没有说话了。请发一条自然的、不打扰的关心问候。要简短，1-2句话。不要问问题。';
+    // Use a lightweight API call (no history needed)
+    var resp = await fetch(config.apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + config.apiKey },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: 'system', content: config.systemPrompt },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 128, temperature: 0.9
+      })
+    });
+    if (!resp.ok) return;
+    var data = await resp.json();
+    var text = data.choices[0].message.content || '';
+    if (text) {
+      var hbMsg = { _id: ++MSG_ID_COUNTER, role: 'assistant', content: text, time: timeStr() };
+      messages.push(hbMsg);
+      saveMessages(messages);
+      syncMessageToSupabase(hbMsg);
+      // Only render if on chat page
+      if (document.getElementById('chat-page').classList.contains('active')) {
+        renderMessageRaw(hbMsg);
+        scrollMsgBottom();
+      }
+    }
+  } catch(e) { console.error('heartbeat error:', e); }
+}
 applyAppearance();
 updateMemoryStatus();
 renderAllMessages();
@@ -1017,7 +1097,8 @@ renderCalendar();
 updateGreeting();
 tickClock();
 setInterval(tickClock, 1000);
-var inp = $('userInput'); if (inp) inp.focus();
+startHeartbeat();
+var inp = $('userInput'); if (inp) { inp.focus(); inp.addEventListener('focus', updateActivity); }
 if (!config.apiKey && !config.useMemory) { setTimeout(function(){ navigateTo('settings'); }, 800); }
 syncFromSupabase().then(function() { renderAllMessages(); scrollMsgBottom(); });
 
