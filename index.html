@@ -704,14 +704,8 @@ function executeTool(call) {
   return '未知工具: ' + call.name;
 }
 
-// Format message for API: handle images as multimodal content
+// Format message for API: images stay in chat but aren't sent to LLM
 function formatApiMessage(msg) {
-  if (msg.image && msg.role === 'user') {
-    // DeepSeek v4-pro uses base64 image format
-    var parts = [{ type: 'text', text: msg.content || '描述这张图片' }];
-    parts.push({ type: 'image', image: msg.image.split(',')[1] || msg.image });
-    return { role: 'user', content: parts };
-  }
   return { role: msg.role, content: msg.content };
 }
 
