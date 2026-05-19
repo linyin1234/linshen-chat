@@ -720,6 +720,8 @@ async function processWithTools(apiMessages, apiUrl, apiKey, model, isEbbingFlow
     apiMessages.push({ role: 'user', content: '[工具 ' + toolCall.name + ' 返回结果]\n' + result + '\n\n请基于以上结果继续回复用户，不要再调用工具。' });
   }
   return { content: '[工具调用超过最大轮次]', thinking: '' };
+}
+
 async function callDeepSeek(userMessage) {
   if (config.useMemory && config.memoryUrl) return callEbbingFlow(userMessage);
 
