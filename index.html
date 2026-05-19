@@ -203,6 +203,16 @@ body {
         <div class="greeting" id="greetingText">下午好，茵</div>
         <div class="date-sub" id="dateText"></div>
         <div style="font-size:32px;font-weight:200;margin-top:8px;letter-spacing:2px;" id="clockDisplay">00:00</div>
+        <div style="display:none;" id="analogClock">
+          <svg width="80" height="80" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="var(--text-dim)" stroke-width="2" opacity="0.3"/>
+            <line id="hourHand" x1="50" y1="50" x2="50" y2="28" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
+            <line id="minHand" x1="50" y1="50" x2="50" y2="18" stroke="var(--text)" stroke-width="2" stroke-linecap="round"/>
+            <line id="secHand" x1="50" y1="50" x2="50" y2="15" stroke="var(--accent)" stroke-width="1" stroke-linecap="round"/>
+            <circle cx="50" cy="50" r="3" fill="var(--accent)"/>
+          </svg>
+        </div>
+        <button onclick="toggleClockStyle()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:11px;margin-top:4px;">切换样式</button>
       </div>
       <div class="home-grid">
         <div class="home-card full" id="calendarCard">
@@ -504,6 +514,7 @@ function calPrevMonth() { calMonth--; if(calMonth<0){calMonth=11;calYear--;} ren
 function calNextMonth() { calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
 
 // Clock
+var clockIsAnalog = false;
 function tickClock() {
   var n = new Date();
   var h = String(n.getHours()).padStart(2,'0');
@@ -511,6 +522,18 @@ function tickClock() {
   var s = String(n.getSeconds()).padStart(2,'0');
   var el = $('clockDisplay');
   if (el) el.textContent = h + ':' + m + ':' + s;
+  // Update analog hands
+  var hr = (n.getHours() % 12) * 30 + n.getMinutes() * 0.5;
+  var mr = n.getMinutes() * 6;
+  var sr = n.getSeconds() * 6;
+  var hh = $('hourHand'); if (hh) hh.setAttribute('transform', 'rotate(' + hr + ' 50 50)');
+  var mh = $('minHand'); if (mh) mh.setAttribute('transform', 'rotate(' + mr + ' 50 50)');
+  var sh = $('secHand'); if (sh) sh.setAttribute('transform', 'rotate(' + sr + ' 50 50)');
+}
+function toggleClockStyle() {
+  clockIsAnalog = !clockIsAnalog;
+  $('clockDisplay').style.display = clockIsAnalog ? 'none' : 'block';
+  $('analogClock').style.display = clockIsAnalog ? 'block' : 'none';
 }
 
 // Home page greeting
@@ -635,7 +658,15 @@ function exportMarkdown(){
 // ═══════════════════════════════════════════
 async function callDeepSeek(userMessage) {
   if (config.useMemory && config.memoryUrl) return callEbbingFlow(userMessage);
-  var apiMessages = [{ role: 'system', content: config.systemPrompt }];
+
+  // Inject current time into system prompt
+  var now = new Date();
+  var timeContext = '当前时间：' + now.getFullYear() + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日 ' +
+    String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') +
+    '，星期' + ['日','一','二','三','四','五','六'][now.getDay()] + '。';
+  var fullSystem = timeContext + '\n' + config.systemPrompt;
+
+  var apiMessages = [{ role: 'system', content: fullSystem }];
   var recent = messages.slice(-40);
   for (var i = 0; i < recent.length; i++) apiMessages.push({ role: recent[i].role, content: recent[i].content });
   apiMessages.push({ role: 'user', content: userMessage });
