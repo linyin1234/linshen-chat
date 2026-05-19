@@ -654,51 +654,98 @@ function exportMarkdown(){
 }
 
 // ═══════════════════════════════════════════
-//  API
+//  TOOL FRAMEWORK
 // ═══════════════════════════════════════════
+var TOOLS = [
+  { name: 'get_time', desc: '获取当前精确时间（含秒）', exec: function() { var n=new Date(); return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0'); } },
+  { name: 'get_date', desc: '获取当前日期', exec: function() { var n=new Date(); return n.getFullYear()+'年'+(n.getMonth()+1)+'月'+n.getDate()+'日 星期'+['日','一','二','三','四','五','六'][n.getDay()]; } },
+  { name: 'calculate', desc: '执行数学计算，参数为算式如 3*5+2', exec: function(expr) { try { var r=Function('"use strict";return ('+expr+')')(); return String(r); } catch(e) { return '计算错误: '+e.message; } } }
+];
+
+function getToolsPrompt() {
+  var p = '\n[可用工具]\n你可以通过 <tool>工具名|参数</tool> 格式调用以下工具。每次回复最多调用一个工具。\n';
+  for (var i = 0; i < TOOLS.length; i++) {
+    p += '- ' + TOOLS[i].name + ': ' + TOOLS[i].desc + '\n';
+  }
+  p += '\n示例：现在几点了？ → 好的 <tool>get_time|</tool>\n';
+  return p;
+}
+
+function parseToolCall(text) {
+  var m = text.match(/<tool>([^<]+)<\/tool>/);
+  if (!m) return null;
+  var parts = m[1].split('|');
+  return { name: parts[0].trim(), arg: parts[1] ? parts[1].trim() : '' };
+}
+
+function executeTool(call) {
+  for (var i = 0; i < TOOLS.length; i++) {
+    if (TOOLS[i].name === call.name) {
+      try { return TOOLS[i].exec(call.arg); } catch(e) { return '工具执行错误: ' + e.message; }
+    }
+  }
+  return '未知工具: ' + call.name;
+}
+
+async function processWithTools(apiMessages, apiUrl, apiKey, model, isEbbingFlow) {
+  // Loop: send to LLM, check for tool calls, execute, retry (max 5 rounds)
+  for (var round = 0; round < 5; round++) {
+    var headers = { 'Content-Type': 'application/json' };
+    if (!isEbbingFlow) headers['Authorization'] = 'Bearer ' + apiKey;
+
+    var body = { model: model, messages: apiMessages, temperature: 0.85, max_tokens: 4096 };
+    var resp = await fetch(apiUrl, { method: 'POST', headers: headers, body: JSON.stringify(body) });
+    if (!resp.ok) {
+      var errText = await resp.text();
+      var msg = 'API 错误 (' + resp.status + ')';
+      try { var j = JSON.parse(errText); msg = j.error ? (j.error.message || msg) : msg; } catch(e) {}
+      throw new Error(msg);
+    }
+    var data = await resp.json();
+    var message = data.choices[0].message;
+    var text = message.content || '';
+
+    // Check for tool call
+    var toolCall = parseToolCall(text);
+    if (!toolCall) {
+      // No tool call — return final response
+      var thinking = message.reasoning_content || (data.choices[0].reasoning_content || '');
+      return { content: text, thinking: thinking };
+    }
+
+    // Execute tool
+    var result = executeTool(toolCall);
+    // Add assistant message + tool result to conversation
+    apiMessages.push({ role: 'assistant', content: text });
+    apiMessages.push({ role: 'user', content: '[工具 ' + toolCall.name + ' 返回结果]\n' + result + '\n\n请基于以上结果继续回复用户，不要再调用工具。' });
+  }
+  return { content: '[工具调用超过最大轮次]', thinking: '' };
 async function callDeepSeek(userMessage) {
   if (config.useMemory && config.memoryUrl) return callEbbingFlow(userMessage);
 
-  // Inject current time into system prompt
   var now = new Date();
   var timeContext = '当前时间：' + now.getFullYear() + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日 ' +
     String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') +
     '，星期' + ['日','一','二','三','四','五','六'][now.getDay()] + '。';
-  var fullSystem = timeContext + '\n' + config.systemPrompt;
+  var fullSystem = timeContext + '\n' + config.systemPrompt + getToolsPrompt();
 
   var apiMessages = [{ role: 'system', content: fullSystem }];
   var recent = messages.slice(-40);
   for (var i = 0; i < recent.length; i++) apiMessages.push({ role: recent[i].role, content: recent[i].content });
   apiMessages.push({ role: 'user', content: userMessage });
-  var resp = await fetch(config.apiUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + config.apiKey },
-    body: JSON.stringify({ model: config.model, messages: apiMessages, temperature: 0.85, max_tokens: 4096 })
-  });
-  if (!resp.ok) { var errText = await resp.text(); var msg = 'API 错误 (' + resp.status + ')'; try { var j = JSON.parse(errText); msg = j.error ? (j.error.message || msg) : msg; } catch(e) {} throw new Error(msg); }
-  var data = await resp.json();
-  var choice = data.choices[0], message = choice.message;
-  var thinking = message.reasoning_content || choice.reasoning_content || '';
-  return { content: message.content || '', thinking: thinking };
+
+  return await processWithTools(apiMessages, config.apiUrl, config.apiKey, config.model, false);
 }
 
 async function callEbbingFlow(userMessage) {
-  // Inject current time
   var now = new Date();
   var timeContext = '当前时间：' + now.getFullYear() + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日 ' +
     String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') +
     '，星期' + ['日','一','二','三','四','五','六'][now.getDay()] + '。';
-  var fullSystem = timeContext + '\n' + config.systemPrompt;
+  var fullSystem = timeContext + '\n' + config.systemPrompt + getToolsPrompt();
 
   var apiMessages = [{ role: 'system', content: fullSystem }, { role: 'user', content: userMessage }];
-  var resp = await fetch(config.memoryUrl, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer local' },
-    body: JSON.stringify({ model: 'ebbingflow', messages: apiMessages, max_tokens: 4096 })
-  });
-  if (!resp.ok) { var errText = await resp.text(); var msg = 'EbbingFlow 错误 (' + resp.status + ')'; try { var j = JSON.parse(errText); msg = j.detail || j.error?.message || msg; } catch(e) {} throw new Error(msg); }
-  var data = await resp.json();
-  var message = data.choices[0].message;
-  return { content: message.content || '', thinking: message.reasoning_content || '' };
+  return await processWithTools(apiMessages, config.memoryUrl, 'local', 'ebbingflow', true);
 }
 
 // ═══════════════════════════════════════════
