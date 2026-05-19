@@ -683,7 +683,14 @@ async function callDeepSeek(userMessage) {
 }
 
 async function callEbbingFlow(userMessage) {
-  var apiMessages = [{ role: 'system', content: config.systemPrompt }, { role: 'user', content: userMessage }];
+  // Inject current time
+  var now = new Date();
+  var timeContext = '当前时间：' + now.getFullYear() + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日 ' +
+    String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') +
+    '，星期' + ['日','一','二','三','四','五','六'][now.getDay()] + '。';
+  var fullSystem = timeContext + '\n' + config.systemPrompt;
+
+  var apiMessages = [{ role: 'system', content: fullSystem }, { role: 'user', content: userMessage }];
   var resp = await fetch(config.memoryUrl, {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer local' },
     body: JSON.stringify({ model: 'ebbingflow', messages: apiMessages, max_tokens: 4096 })
