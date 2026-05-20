@@ -111,6 +111,18 @@ body {
 .conv-item .conv-del { opacity:0; font-size:12px; cursor:pointer; color:var(--text-dim); transition:opacity 0.15s; }
 .conv-item:hover .conv-del { opacity:0.5; }
 .conv-item .conv-del:hover { color:var(--danger); opacity:1; }
+
+/* Mobile responsive sidebar */
+@media (max-width:640px) {
+  .chat-sidebar { position:fixed; left:0; top:0; bottom:var(--nav-height); z-index:50; width:260px; transform:translateX(-100%); transition:transform 0.25s ease; box-shadow:2px 0 20px rgba(0,0,0,0.5); }
+  .chat-sidebar.open { transform:translateX(0); }
+  .sidebar-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:49; }
+  .sidebar-backdrop.show { display:block; }
+  #chat-page { position:relative; }
+}
+@media (min-width:641px) {
+  .sidebar-toggle-btn { display:none; }
+}
 .chat-header {
   background:var(--surface); border-bottom:1px solid var(--border);
   padding:12px 16px; display:flex; align-items:center;
@@ -280,6 +292,7 @@ body {
   <!-- ═══════════ CHAT PAGE ═══════════ -->
   <div class="page" id="chat-page">
     <div class="chat-sidebar">
+      <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
       <div class="sidebar-header">
         <input type="text" id="searchInput" placeholder="🔍 搜索消息..." oninput="searchMessages()">
         <button class="sidebar-add" onclick="newConversation()" title="新建对话">+</button>
@@ -289,6 +302,7 @@ body {
     <div class="chat-main">
     <div class="chat-header">
       <div class="chat-header-left">
+        <button class="icon-btn sidebar-toggle-btn" onclick="toggleSidebar()" style="margin-right:4px;">☰</button>
         <div class="avatar" id="avatarEl">🌙</div>
         <div>
           <div class="chat-header-name" id="nameEl">林深</div>
@@ -504,7 +518,7 @@ if (!conversations.activeId || conversations.list.length === 0) {
   conversations.list = [{ id: 'conv_default', name: '默认对话', messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }];
 }
 
-function saveMessages(msgs) { setActiveMessages(msgs); saveConversations(); }
+function saveMessages(msgs) { setActiveMessages(msgs); saveConversations(); syncConversationsToSupabase(); }
 
 // Live alias — always points to active conversation's messages
 function getMessages() { return getActiveMessages(); }
@@ -561,6 +575,7 @@ function newConversation() {
   conversations.list.push({ id: id, name: name, messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
   conversations.activeId = id;
   saveConversations();
+  syncConversationsToSupabase();
   renderConvList();
   renderAllMessages();
 }
@@ -568,10 +583,27 @@ function newConversation() {
 function switchConversation(id) {
   conversations.activeId = id;
   saveConversations();
+  syncConversationsToSupabase();
   renderConvList();
   renderAllMessages();
   scrollMsgBottom();
+  // Close sidebar on mobile after switching
+  document.getElementById('chat-sidebar-wrapper') && toggleSidebar(true);
   var inp = $('userInput'); if (inp) inp.focus();
+}
+
+function toggleSidebar(forceClose) {
+  var sidebar = document.querySelector('.chat-sidebar');
+  var backdrop = $('sidebarBackdrop');
+  if (!sidebar) return;
+  if (forceClose) {
+    sidebar.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('show');
+  } else {
+    var isOpen = sidebar.classList.contains('open');
+    sidebar.classList.toggle('open');
+    if (backdrop) backdrop.classList.toggle('show');
+  }
 }
 
 function deleteConversation(id) {
@@ -633,31 +665,76 @@ function $(id) { return document.getElementById(id); }
 // ═══════════════════════════════════════════
 var SUPABASE_URL = 'https://vsxpshxhcqsivtccpsrc.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_BLnL83OEM5bHfuWLf98sBw_0kAiUEa0';
-var syncEnabled = false; // Disabled for multi-conversation — messages stored per-conv in localStorage
+var syncEnabled = true;
+
 function sbHeaders() { return { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }; }
 
 async function syncFromSupabase() {
   if (!syncEnabled) return;
   try {
-    var resp = await fetch(SUPABASE_URL + '/rest/v1/messages?order=msg_id.asc&limit=500', { headers: sbHeaders() });
-    if (!resp.ok) return;
-    var remote = await resp.json();
-    if (!remote.length) return;
-    var merged=[], remoteIds={};
-    for(var i=0;i<remote.length;i++){var r=remote[i];remoteIds[r.msg_id]=true;merged.push({_id:r.msg_id,role:r.role,content:r.content,thinking:r.thinking||'',time:r.time||''});}
-    for(var i=0;i<getActiveMessages().length;i++){if(!remoteIds[messages[i]._id])merged.push(messages[i]);}
-    merged.sort(function(a,b){return a._id-b._id;});
-    messages=merged;
-    if(getActiveMessages().length>0)MSG_ID_COUNTER=Math.max.apply(null,messages.map(function(m){return m._id||0;}));
-    saveMessages(messages);
-    var cr=await fetch(SUPABASE_URL+'/rest/v1/config?id=eq.1',{headers:sbHeaders()});
-    if(cr.ok){var cd=await cr.json();if(cd.length&&cd[0].config_data){var rc=cd[0].config_data;for(var k in rc){if(rc.hasOwnProperty(k))config[k]=rc[k];}saveConfig(config);applyAppearance();updateMemoryStatus();}}
+    // Pull config (includes conversations)
+    var cr = await fetch(SUPABASE_URL + '/rest/v1/config?id=eq.1', { headers: sbHeaders() });
+    if (cr.ok) {
+      var cd = await cr.json();
+      if (cd.length && cd[0].config_data) {
+        var rc = cd[0].config_data;
+        // Restore config fields
+        for (var k in rc) {
+          if (rc.hasOwnProperty(k) && k !== 'conversations') config[k] = rc[k];
+        }
+        // Restore conversations if remote is newer
+        if (rc.conversations && rc.conversations.updatedAt) {
+          var localUpdated = conversations.updatedAt || '';
+          if (rc.conversations.updatedAt > localUpdated) {
+            conversations = rc.conversations;
+            saveConversations();
+          }
+        }
+        saveConfig(config);
+        applyAppearance();
+        updateMemoryStatus();
+      }
+    }
     renderAllMessages();
+    renderConvList();
   } catch(e) {}
 }
-async function syncMessageToSupabase(msg){if(!syncEnabled)return;try{await fetch(SUPABASE_URL+'/rest/v1/messages',{method:'POST',headers:sbHeaders(),body:JSON.stringify({msg_id:msg._id,role:msg.role,content:msg.content,thinking:msg.thinking||'',time:msg.time||''})});}catch(e){}}
-async function syncConfigToSupabase(){if(!syncEnabled)return;try{var r=await fetch(SUPABASE_URL+'/rest/v1/config?id=eq.1',{method:'PATCH',headers:sbHeaders(),body:JSON.stringify({config_data:config})});if(r.ok){var t=await r.text();if(!t||t==='[]'){await fetch(SUPABASE_URL+'/rest/v1/config',{method:'POST',headers:sbHeaders(),body:JSON.stringify({id:1,config_data:config})});}}}catch(e){}}
-async function deleteMessageFromSupabase(msgId){if(!syncEnabled)return;try{await fetch(SUPABASE_URL+'/rest/v1/messages?msg_id=eq.'+msgId,{method:'DELETE',headers:sbHeaders()});}catch(e){}}
+
+async function syncMessageToSupabase(msg) {} // No-op — sync via conversations blob
+async function deleteMessageFromSupabase(msgId) {} // No-op
+
+async function syncConversationsToSupabase() {
+  if (!syncEnabled) return;
+  try {
+    conversations.updatedAt = new Date().toISOString();
+    // Get current config from Supabase, merge conversations in
+    var cr = await fetch(SUPABASE_URL + '/rest/v1/config?id=eq.1', { headers: sbHeaders() });
+    var merged = { config_data: config };
+    merged.config_data.conversations = conversations;
+    if (cr.ok) {
+      var cd = await cr.json();
+      if (cd.length && cd[0].config_data) {
+        for (var k in cd[0].config_data) {
+          if (cd[0].config_data.hasOwnProperty(k) && k !== 'conversations' && !merged.config_data.hasOwnProperty(k)) {
+            merged.config_data[k] = cd[0].config_data[k];
+          }
+        }
+      }
+    }
+    var r = await fetch(SUPABASE_URL + '/rest/v1/config?id=eq.1', { method: 'PATCH', headers: sbHeaders(), body: JSON.stringify(merged) });
+    if (r.ok) {
+      var t = await r.text();
+      if (!t || t === '[]') {
+        await fetch(SUPABASE_URL + '/rest/v1/config', { method: 'POST', headers: sbHeaders(), body: JSON.stringify({ id: 1, config_data: merged.config_data }) });
+      }
+    }
+  } catch(e) {}
+}
+
+async function syncConfigToSupabase() {
+  if (!syncEnabled) return;
+  try { syncConversationsToSupabase(); } catch(e) {}
+}
 
 // ═══════════════════════════════════════════
 //  NAVIGATION
@@ -811,7 +888,7 @@ function showToast(text){
 function deleteMessage(id, event) {
   if (event) { event.stopPropagation(); event.preventDefault(); }
   for (var i = getActiveMessages().length - 1; i >= 0; i--) { if (messages[i]._id === id) { messages.splice(i, 1); break; } }
-  saveMessages(messages); deleteMessageFromSupabase(id);
+  saveMessages(messages);
   var el = document.querySelector('.msg[data-msg-id="' + id + '"]'); if (el) el.remove();
   if (getActiveMessages().length === 0) {
     var area = getChat(), typing = getTyping();
@@ -825,7 +902,6 @@ function showClearConfirm(){ $('clearConfirm').classList.add('show'); }
 function hideClearConfirm(){ $('clearConfirm').classList.remove('show'); }
 function clearAllMessages(){
   messages=[];saveMessages(messages);
-  if(syncEnabled){try{fetch(SUPABASE_URL+'/rest/v1/messages?msg_id=gt.-1',{method:'DELETE',headers:sbHeaders()});}catch(e){}}
   hideClearConfirm();renderAllMessages();showToast('聊天记录已清除');
 }
 
@@ -999,7 +1075,7 @@ async function sendMessage() {
   var prevMsg = getActiveMessages().length > 1 ? messages[getActiveMessages().length - 2] : null;
   insertTimeSeparator(userMsg, prevMsg ? prevMsg.time : null);
   renderMessageRaw(userMsg);
-  saveMessages(messages); syncMessageToSupabase(userMsg);
+  saveMessages(messages);
   scrollMsgBottom();
   showTyping(true);
   try {
@@ -1008,7 +1084,7 @@ async function sendMessage() {
     var himMsg = { _id: ++MSG_ID_COUNTER, role: 'assistant', content: result.content, thinking: result.thinking, time: timeStr() };
     messages.push(himMsg);
     renderMessageRaw(himMsg);
-    saveMessages(messages); syncMessageToSupabase(himMsg);
+    saveMessages(messages);
     scrollMsgBottom();
   } catch(e) {
     showTyping(false);
@@ -1261,8 +1337,6 @@ async function sendHeartbeatGreeting(idleMinutes) {
       var hbMsg = { _id: ++MSG_ID_COUNTER, role: 'assistant', content: text, time: timeStr() };
       messages.push(hbMsg);
       saveMessages(messages);
-      syncMessageToSupabase(hbMsg);
-      // Only render if on chat page
       if (document.getElementById('chat-page').classList.contains('active')) {
         renderMessageRaw(hbMsg);
         scrollMsgBottom();
