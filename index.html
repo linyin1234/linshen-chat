@@ -1043,7 +1043,7 @@ function checkHeartbeat() {
     statusEl.style.color = idleMin > HEARTBEAT_IDLE_MINUTES ? '#f9a8d4' : '';
   }
   // Send proactive message if idle too long
-  if (idleMin > HEARTBEAT_IDLE_MINUTES && config.apiKey && (Date.now() - lastHeartbeatTime) > HEARTBEAT_IDLE_MINUTES * 60000) {
+  if (idleMin > HEARTBEAT_IDLE_MINUTES && (config.apiKey || config.useMemory) && (Date.now() - lastHeartbeatTime) > HEARTBEAT_IDLE_MINUTES * 60000) {
     sendHeartbeatGreeting(idleMin);
   }
 }
@@ -1056,11 +1056,18 @@ async function sendHeartbeatGreeting(idleMinutes) {
     var timeDesc = hrs > 0 ? hrs + '小时' + mins + '分钟' : Math.floor(idleMinutes) + '分钟';
     var prompt = '用户已经' + timeDesc + '没有说话了。请发一条自然的、不打扰的关心问候。要简短，1-2句话。不要问问题。';
     // Use a lightweight API call (no history needed)
-    var resp = await fetch(config.apiUrl, {
+    // Use correct endpoint based on mode
+    var apiUrl = config.useMemory ? config.memoryUrl : config.apiUrl;
+    var apiHeaders = config.useMemory
+      ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer local' }
+      : { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + config.apiKey };
+    var apiModel = config.useMemory ? 'ebbingflow' : config.model;
+
+    var resp = await fetch(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + config.apiKey },
+      headers: apiHeaders,
       body: JSON.stringify({
-        model: config.model,
+        model: apiModel,
         messages: [
           { role: 'system', content: config.systemPrompt },
           { role: 'user', content: prompt }
