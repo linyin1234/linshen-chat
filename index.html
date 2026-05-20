@@ -569,6 +569,12 @@ function renderConvList() {
 }
 
 function newConversation() {
+  // Ensure sidebar is visible on mobile
+  var sidebar = document.querySelector('.chat-sidebar');
+  if (sidebar && !sidebar.classList.contains('open') && window.innerWidth <= 640) {
+    sidebar.classList.add('open');
+    if ($('sidebarBackdrop')) $('sidebarBackdrop').classList.add('show');
+  }
   // Show inline input for mobile compatibility
   var list = $('convList');
   var html = '<div id="newConvInput" style="padding:10px 14px;display:flex;gap:6px;align-items:center;border-bottom:1px solid var(--border);">';
@@ -610,7 +616,7 @@ function switchConversation(id) {
   renderAllMessages();
   scrollMsgBottom();
   // Close sidebar on mobile after switching
-  document.getElementById('chat-sidebar-wrapper') && toggleSidebar(true);
+  if (window.innerWidth <= 640) toggleSidebar(true);
   var inp = $('userInput'); if (inp) inp.focus();
 }
 
@@ -687,7 +693,7 @@ function $(id) { return document.getElementById(id); }
 // ═══════════════════════════════════════════
 var SUPABASE_URL = 'https://vsxpshxhcqsivtccpsrc.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_BLnL83OEM5bHfuWLf98sBw_0kAiUEa0';
-var syncEnabled = true;
+var syncEnabled = false; // Disabled — multi-device causes conversation conflicts
 
 function sbHeaders() { return { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }; }
 
