@@ -1325,8 +1325,11 @@ function checkHeartbeat() {
     statusEl.textContent = idleMin > HEARTBEAT_IDLE_MINUTES ? mood + ' 在想你' : '在线 · 在等你';
     statusEl.style.color = idleMin > HEARTBEAT_IDLE_MINUTES ? '#f9a8d4' : '';
   }
+  // Debug: log every 5 minutes
+  if (Math.floor(idleMin) % 5 === 0) console.log('Heartbeat check: idle=' + Math.floor(idleMin) + 'min, enabled=' + config.heartbeatEnabled + ', hasAPI=' + !!(config.apiKey || config.useMemory));
   // Send proactive message if idle too long
   if (idleMin > HEARTBEAT_IDLE_MINUTES && (config.apiKey || config.useMemory) && config.heartbeatEnabled && (Date.now() - lastHeartbeatTime) > HEARTBEAT_IDLE_MINUTES * 60000) {
+    console.log('Heartbeat: sending greeting');
     sendHeartbeatGreeting(idleMin);
   }
 }
