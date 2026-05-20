@@ -569,8 +569,30 @@ function renderConvList() {
 }
 
 function newConversation() {
-  var name = prompt('对话名称：', '新对话');
-  if (!name) return;
+  // Show inline input for mobile compatibility
+  var list = $('convList');
+  var html = '<div id="newConvInput" style="padding:10px 14px;display:flex;gap:6px;align-items:center;border-bottom:1px solid var(--border);">';
+  html += '<input type="text" id="newConvName" placeholder="对话名称" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;" onkeydown="if(event.key===\'Enter\')confirmNewConv()">';
+  html += '<button onclick="confirmNewConv()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;">确定</button>';
+  html += '<button onclick="cancelNewConv()" style="background:transparent;color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;cursor:pointer;">取消</button>';
+  html += '</div>';
+  list.insertAdjacentHTML('afterbegin', html);
+  setTimeout(function(){ var inp = $('newConvName'); if (inp) inp.focus(); }, 100);
+}
+
+function confirmNewConv() {
+  var name = ($('newConvName').value || '').trim();
+  if (!name) name = '新对话';
+  cancelNewConv();
+  createConversation(name);
+}
+
+function cancelNewConv() {
+  var el = $('newConvInput');
+  if (el) el.remove();
+}
+
+function createConversation(name) {
   var id = 'conv_' + Date.now();
   conversations.list.push({ id: id, name: name, messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
   conversations.activeId = id;
