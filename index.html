@@ -1364,8 +1364,9 @@ async function sendHeartbeatGreeting(idleMinutes) {
     if (!resp.ok) return;
     var data = await resp.json();
     var text = data.choices[0].message.content || '';
+    var thinking = data.choices[0].message.reasoning_content || '';
     if (text) {
-      var hbMsg = { _id: ++MSG_ID_COUNTER, role: 'assistant', content: text, time: timeStr() };
+      var hbMsg = { _id: ++MSG_ID_COUNTER, role: 'assistant', content: text, thinking: thinking, time: timeStr() };
       messages.push(hbMsg);
       saveMessages(messages);
       if (document.getElementById('chat-page').classList.contains('active')) {
