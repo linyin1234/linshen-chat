@@ -545,8 +545,9 @@ function renderConvList() {
     var preview = lastMsg ? (lastMsg.content || '').substring(0, 30) : '暂无消息';
     var date = c.createdAt ? c.createdAt.substring(0, 10) : '';
     var html = '<div class="conv-item' + (c.id === activeId ? ' active' : '') + '" onclick="switchConversation(\'' + c.id + '\')">';
-    html += '<div class="conv-name"><span>' + escapeHtml(c.name) + '</span>';
-    html += '<span class="conv-del" onclick="event.stopPropagation();deleteConversation(\'' + c.id + '\')">×</span></div>';
+    html += '<div class="conv-name"><span>' + escapeHtml(c.name) + '</span><span style="display:flex;gap:4px;">';
+    html += '<span class="conv-del" onclick="event.stopPropagation();renameConversation(\'' + c.id + '\')" title="重命名">✎</span>';
+    html += '<span class="conv-del" onclick="event.stopPropagation();deleteConversation(\'' + c.id + '\')">×</span></span></div>';
     html += '<div class="conv-preview">' + escapeHtml(preview) + '</div>';
     html += '<div class="conv-date">' + date + '</div></div>';
     list.innerHTML += html;
@@ -583,6 +584,20 @@ function deleteConversation(id) {
   saveConversations();
   renderConvList();
   renderAllMessages();
+}
+
+function renameConversation(id) {
+  for (var i = 0; i < conversations.list.length; i++) {
+    if (conversations.list[i].id === id) {
+      var newName = prompt('重命名：', conversations.list[i].name);
+      if (newName && newName.trim()) {
+        conversations.list[i].name = newName.trim();
+        saveConversations();
+        renderConvList();
+      }
+      return;
+    }
+  }
 }
 
 // ── Search ──
