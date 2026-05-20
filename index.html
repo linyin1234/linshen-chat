@@ -87,7 +87,30 @@ body {
 }
 .quick-btn:hover { background:var(--accent-soft); border-color:var(--accent); }
 
-/* ── Chat Page (inherits all existing chat styles) ── */
+/* ── Chat page with sidebar ── */
+#chat-page { flex-direction:row; }
+.chat-sidebar {
+  width:220px; background:var(--surface); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; flex-shrink:0; overflow:hidden;
+}
+.chat-main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.sidebar-header { padding:14px; border-bottom:1px solid var(--border); display:flex; gap:6px; align-items:center; }
+.sidebar-header input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:7px 10px; color:var(--text); font-size:12px; font-family:var(--font); outline:none; }
+.sidebar-header input:focus { border-color:var(--accent); }
+.sidebar-add { width:28px; height:28px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--accent); cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sidebar-add:hover { background:var(--surface-hover); }
+.conv-list { flex:1; overflow-y:auto; }
+.conv-list::-webkit-scrollbar { width:3px; }
+.conv-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+.conv-item { padding:12px 14px; cursor:pointer; border-bottom:1px solid var(--border); transition:background 0.1s; display:flex; flex-direction:column; gap:2px; }
+.conv-item:hover { background:var(--surface-hover); }
+.conv-item.active { background:var(--accent-soft); border-left:2px solid var(--accent); }
+.conv-item .conv-name { font-size:13px; font-weight:500; display:flex; justify-content:space-between; align-items:center; }
+.conv-item .conv-date { font-size:10px; color:var(--text-dim); }
+.conv-item .conv-preview { font-size:11px; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:170px; }
+.conv-item .conv-del { opacity:0; font-size:12px; cursor:pointer; color:var(--text-dim); transition:opacity 0.15s; }
+.conv-item:hover .conv-del { opacity:0.5; }
+.conv-item .conv-del:hover { color:var(--danger); opacity:1; }
 .chat-header {
   background:var(--surface); border-bottom:1px solid var(--border);
   padding:12px 16px; display:flex; align-items:center;
@@ -256,6 +279,14 @@ body {
 
   <!-- ═══════════ CHAT PAGE ═══════════ -->
   <div class="page" id="chat-page">
+    <div class="chat-sidebar">
+      <div class="sidebar-header">
+        <input type="text" id="searchInput" placeholder="🔍 搜索消息..." oninput="searchMessages()">
+        <button class="sidebar-add" onclick="newConversation()" title="新建对话">+</button>
+      </div>
+      <div class="conv-list" id="convList"></div>
+    </div>
+    <div class="chat-main">
     <div class="chat-header">
       <div class="chat-header-left">
         <div class="avatar" id="avatarEl">🌙</div>
@@ -291,6 +322,7 @@ body {
       <button class="icon-btn" onclick="$('imageInput').click()" title="发送图片" style="flex-shrink:0;">🖼</button>
       <button class="send-btn" id="sendBtn" onclick="sendMessage()">↑</button>
     </div>
+    </div><!-- .chat-main -->
   </div>
 
   <!-- ═══════════ MEMORY PAGE ═══════════ -->
@@ -419,8 +451,64 @@ body {
 //  STATE
 // ═══════════════════════════════════════════
 var LS_KEY = 'lin_shen_chat_config_v5';
-var CHAT_KEY = 'lin_shen_chat_history_v5';
+var CONV_KEY = 'lin_shen_conversations_v1';
 var MSG_ID_COUNTER = 0;
+
+// ── Conversations (multi-chat data model) ──
+function loadConversations() {
+  try { var r = localStorage.getItem(CONV_KEY); if (r) return JSON.parse(r); } catch(e) {}
+  return null;
+}
+function saveConversations() { try { localStorage.setItem(CONV_KEY, JSON.stringify(conversations)); } catch(e) {} }
+
+function getActiveConv() {
+  for (var i = 0; i < conversations.list.length; i++) {
+    if (conversations.list[i].id === conversations.activeId) return conversations.list[i];
+  }
+  if (conversations.list.length > 0) { conversations.activeId = conversations.list[0].id; return conversations.list[0]; }
+  return null;
+}
+function getActiveMessages() {
+  var conv = getActiveConv();
+  return conv ? conv.messages : [];
+}
+function setActiveMessages(msgs) {
+  var conv = getActiveConv();
+  if (conv) { conv.messages = msgs; conv.updatedAt = new Date().toISOString(); }
+}
+
+// Load or migrate
+var conversations = loadConversations();
+if (!conversations) {
+  // Migrate from old format
+  var oldMsgs = [];
+  try { var r = localStorage.getItem('lin_shen_chat_history_v5'); if (r) oldMsgs = JSON.parse(r); } catch(e) {}
+  for (var i = 0; i < oldMsgs.length; i++) { if (!oldMsgs[i]._id) oldMsgs[i]._id = ++MSG_ID_COUNTER; }
+  if (oldMsgs.length > 0) MSG_ID_COUNTER = Math.max.apply(null, oldMsgs.map(function(m){return m._id||0;}));
+  conversations = {
+    activeId: 'conv_default',
+    list: [{ id: 'conv_default', name: '默认对话', messages: oldMsgs, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]
+  };
+  saveConversations();
+  // Clear old key
+  try { localStorage.removeItem('lin_shen_chat_history_v5'); } catch(e) {}
+} else {
+  for (var c = 0; c < conversations.list.length; c++) {
+    var ms = conversations.list[c].messages;
+    for (var j = 0; j < ms.length; j++) { if (!ms[j]._id) ms[j]._id = ++MSG_ID_COUNTER; }
+    if (ms.length > 0) MSG_ID_COUNTER = Math.max(MSG_ID_COUNTER, Math.max.apply(null, ms.map(function(m){return m._id||0;})));
+  }
+}
+if (!conversations.activeId || conversations.list.length === 0) {
+  conversations.activeId = 'conv_default';
+  conversations.list = [{ id: 'conv_default', name: '默认对话', messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }];
+}
+
+function saveMessages(msgs) { setActiveMessages(msgs); saveConversations(); }
+
+// Live alias — always points to active conversation's messages
+function getMessages() { return getActiveMessages(); }
+Object.defineProperty(window, 'messages', { get: function() { return getActiveMessages(); }, set: function(v) { setActiveMessages(v); } });
 
 function loadConfig() {
   try { var r = localStorage.getItem(LS_KEY); if (r) return JSON.parse(r); } catch(e) {}
@@ -440,16 +528,88 @@ function loadConfig() {
 function saveConfig(cfg) { try { localStorage.setItem(LS_KEY, JSON.stringify(cfg)); } catch(e) {} }
 
 var config = loadConfig();
-var messages = (function() {
-  try { var r = localStorage.getItem(CHAT_KEY); return r ? JSON.parse(r) : []; } catch(e) { return []; }
-})();
-var pendingImage = null; // data URL of selected image
-var lastActivityTime = Date.now(); // heartbeat tracking
+var pendingImage = null;
+var lastActivityTime = Date.now();
 var heartbeatTimer = null;
 var lastHeartbeatTime = 0;
-for (var i = 0; i < messages.length; i++) { if (!messages[i]._id) messages[i]._id = ++MSG_ID_COUNTER; }
-if (messages.length > 0) MSG_ID_COUNTER = Math.max.apply(null, messages.map(function(m){return m._id||0;}));
-function saveMessages(msgs) { try { localStorage.setItem(CHAT_KEY, JSON.stringify(msgs.slice(-200))); } catch(e) {} }
+
+// ── Conversation management ──
+function renderConvList() {
+  var list = $('convList');
+  if (!list) return;
+  list.innerHTML = '';
+  var activeId = conversations.activeId;
+  for (var i = conversations.list.length - 1; i >= 0; i--) {
+    var c = conversations.list[i];
+    var lastMsg = c.messages.length > 0 ? c.messages[c.messages.length - 1] : null;
+    var preview = lastMsg ? (lastMsg.content || '').substring(0, 30) : '暂无消息';
+    var date = c.createdAt ? c.createdAt.substring(0, 10) : '';
+    var html = '<div class="conv-item' + (c.id === activeId ? ' active' : '') + '" onclick="switchConversation(\'' + c.id + '\')">';
+    html += '<div class="conv-name"><span>' + escapeHtml(c.name) + '</span>';
+    html += '<span class="conv-del" onclick="event.stopPropagation();deleteConversation(\'' + c.id + '\')">×</span></div>';
+    html += '<div class="conv-preview">' + escapeHtml(preview) + '</div>';
+    html += '<div class="conv-date">' + date + '</div></div>';
+    list.innerHTML += html;
+  }
+}
+
+function newConversation() {
+  var name = prompt('对话名称：', '新对话');
+  if (!name) return;
+  var id = 'conv_' + Date.now();
+  conversations.list.push({ id: id, name: name, messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+  conversations.activeId = id;
+  saveConversations();
+  renderConvList();
+  renderAllMessages();
+}
+
+function switchConversation(id) {
+  conversations.activeId = id;
+  saveConversations();
+  renderConvList();
+  renderAllMessages();
+  scrollMsgBottom();
+  var inp = $('userInput'); if (inp) inp.focus();
+}
+
+function deleteConversation(id) {
+  if (conversations.list.length <= 1) { showToast('至少保留一个对话'); return; }
+  if (!confirm('删除这个对话及其所有消息？')) return;
+  for (var i = 0; i < conversations.list.length; i++) {
+    if (conversations.list[i].id === id) { conversations.list.splice(i, 1); break; }
+  }
+  if (conversations.activeId === id) conversations.activeId = conversations.list[0].id;
+  saveConversations();
+  renderConvList();
+  renderAllMessages();
+}
+
+// ── Search ──
+function searchMessages() {
+  var q = ($('searchInput').value || '').trim().toLowerCase();
+  if (!q) { renderConvList(); return; }
+  var list = $('convList');
+  list.innerHTML = '';
+  var results = [];
+  for (var i = 0; i < conversations.list.length; i++) {
+    var ms = conversations.list[i].messages;
+    for (var j = 0; j < ms.length; j++) {
+      if (ms[j].content && ms[j].content.toLowerCase().indexOf(q) >= 0) {
+        results.push({ conv: conversations.list[i], msg: ms[j], convIndex: i, msgIndex: j });
+      }
+    }
+  }
+  if (results.length === 0) { list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:12px;">未找到</div>'; return; }
+  for (var r = 0; r < Math.min(results.length, 30); r++) {
+    var res = results[r];
+    var preview = (res.msg.content || '').substring(0, 50);
+    var html = '<div class="conv-item" onclick="switchConversation(\'' + res.conv.id + '\')" style="padding:8px 14px;">';
+    html += '<div class="conv-name" style="font-size:12px;">' + escapeHtml(res.conv.name) + '<span style="color:var(--text-dim);font-size:10px;">' + (res.msg.time||'') + '</span></div>';
+    html += '<div class="conv-preview">' + escapeHtml(preview) + '</div></div>';
+    list.innerHTML += html;
+  }
+}
 
 function $(id) { return document.getElementById(id); }
 
@@ -470,10 +630,10 @@ async function syncFromSupabase() {
     if (!remote.length) return;
     var merged=[], remoteIds={};
     for(var i=0;i<remote.length;i++){var r=remote[i];remoteIds[r.msg_id]=true;merged.push({_id:r.msg_id,role:r.role,content:r.content,thinking:r.thinking||'',time:r.time||''});}
-    for(var i=0;i<messages.length;i++){if(!remoteIds[messages[i]._id])merged.push(messages[i]);}
+    for(var i=0;i<getActiveMessages().length;i++){if(!remoteIds[messages[i]._id])merged.push(messages[i]);}
     merged.sort(function(a,b){return a._id-b._id;});
     messages=merged;
-    if(messages.length>0)MSG_ID_COUNTER=Math.max.apply(null,messages.map(function(m){return m._id||0;}));
+    if(getActiveMessages().length>0)MSG_ID_COUNTER=Math.max.apply(null,messages.map(function(m){return m._id||0;}));
     saveMessages(messages);
     var cr=await fetch(SUPABASE_URL+'/rest/v1/config?id=eq.1',{headers:sbHeaders()});
     if(cr.ok){var cd=await cr.json();if(cd.length&&cd[0].config_data){var rc=cd[0].config_data;for(var k in rc){if(rc.hasOwnProperty(k))config[k]=rc[k];}saveConfig(config);applyAppearance();updateMemoryStatus();}}
@@ -599,13 +759,13 @@ function renderAllMessages() {
   var area = getChat(), typing = getTyping();
   var toRemove = area.querySelectorAll('.msg, .welcome');
   for (var i = 0; i < toRemove.length; i++) toRemove[i].remove();
-  if (messages.length === 0) {
+  if (getActiveMessages().length === 0) {
     var w = document.createElement('div'); w.className = 'welcome'; w.id = 'welcomeEl';
     w.innerHTML = '<div class="wave">🌙</div><h2>林深</h2><p>点击 ⚙ 设置 API Key</p><button class="setup-hint" onclick="navigateTo(\'settings\')">开始设置 →</button>';
     area.insertBefore(w, typing);
   } else {
     var prevTime = null;
-    for (var i = 0; i < messages.length; i++) { insertTimeSeparator(messages[i], prevTime); prevTime = messages[i].time; renderMessageRaw(messages[i]); }
+    for (var i = 0; i < getActiveMessages().length; i++) { insertTimeSeparator(messages[i], prevTime); prevTime = messages[i].time; renderMessageRaw(messages[i]); }
   }
   scrollMsgBottom();
 }
@@ -635,10 +795,10 @@ function showToast(text){
 // ═══════════════════════════════════════════
 function deleteMessage(id, event) {
   if (event) { event.stopPropagation(); event.preventDefault(); }
-  for (var i = messages.length - 1; i >= 0; i--) { if (messages[i]._id === id) { messages.splice(i, 1); break; } }
+  for (var i = getActiveMessages().length - 1; i >= 0; i--) { if (messages[i]._id === id) { messages.splice(i, 1); break; } }
   saveMessages(messages); deleteMessageFromSupabase(id);
   var el = document.querySelector('.msg[data-msg-id="' + id + '"]'); if (el) el.remove();
-  if (messages.length === 0) {
+  if (getActiveMessages().length === 0) {
     var area = getChat(), typing = getTyping();
     var w = document.createElement('div'); w.className = 'welcome'; w.id = 'welcomeEl';
     w.innerHTML = '<div class="wave">🌙</div><h2>林深</h2><p>点击 ⚙ 设置 API Key</p><button class="setup-hint" onclick="navigateTo(\'settings\')">开始设置 →</button>';
@@ -658,13 +818,13 @@ function clearAllMessages(){
 //  EXPORT
 // ═══════════════════════════════════════════
 function exportMarkdown(){
-  if(messages.length===0){showToast('没有聊天记录可导出');return;}
+  if(getActiveMessages().length===0){showToast('没有聊天记录可导出');return;}
   var name=config.nickname||'林深',now=new Date();
   var ds=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-  var md='# '+name+' · 聊天记录\n> 导出时间：'+ds+' '+timeStr()+'\n> 共 '+messages.length+' 条消息\n\n---\n\n';
-  for(var i=0;i<messages.length;i++){var m=messages[i];var speaker=m.role==='user'?'你':name;
+  var md='# '+name+' · 聊天记录\n> 导出时间：'+ds+' '+timeStr()+'\n> 共 '+getActiveMessages().length+' 条消息\n\n---\n\n';
+  for(var i=0;i<getActiveMessages().length;i++){var m=messages[i];var speaker=m.role==='user'?'你':name;
     if(m.thinking)md+='<details>\n<summary>💭 思考过程</summary>\n\n'+m.thinking+'\n\n</details>\n\n';
-    md+='**'+speaker+'** '+(m.time||'')+'\n'+m.content+'\n\n';if(i<messages.length-1)md+='---\n\n';
+    md+='**'+speaker+'** '+(m.time||'')+'\n'+m.content+'\n\n';if(i<getActiveMessages().length-1)md+='---\n\n';
   }
   md+='\n\n> 由 '+name+' 聊天页面导出\n';
   var blob=new Blob([md],{type:'text/markdown;charset=utf-8'});var url=URL.createObjectURL(blob);
@@ -821,7 +981,7 @@ async function sendMessage() {
 
   var userMsg = { _id: ++MSG_ID_COUNTER, role: 'user', content: text || '[图片]', time: timeStr(), image: img || null };
   messages.push(userMsg);
-  var prevMsg = messages.length > 1 ? messages[messages.length - 2] : null;
+  var prevMsg = getActiveMessages().length > 1 ? messages[getActiveMessages().length - 2] : null;
   insertTimeSeparator(userMsg, prevMsg ? prevMsg.time : null);
   renderMessageRaw(userMsg);
   saveMessages(messages); syncMessageToSupabase(userMsg);
@@ -1095,9 +1255,12 @@ async function sendHeartbeatGreeting(idleMinutes) {
     }
   } catch(e) { console.error('heartbeat error:', e); }
 }
+
+// ── Init ──
 applyAppearance();
 updateMemoryStatus();
 renderAllMessages();
+renderConvList();
 renderCalendar();
 updateGreeting();
 tickClock();
