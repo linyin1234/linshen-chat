@@ -546,6 +546,8 @@ var pendingImage = null;
 var lastActivityTime = Date.now();
 var heartbeatTimer = null;
 var lastHeartbeatTime = 0;
+var lastMorningDate = '';
+var lastEveningDate = '';
 
 // ── Conversation management ──
 function renderConvList() {
@@ -1332,6 +1334,49 @@ function checkHeartbeat() {
     console.log('Heartbeat: sending greeting');
     sendHeartbeatGreeting(idleMin);
   }
+  // Time-based triggers
+  var today = new Date().toISOString().substring(0, 10);
+  var hour = new Date().getHours();
+  if (config.heartbeatEnabled && (config.apiKey || config.useMemory)) {
+    if (hour >= 7 && hour <= 9 && lastMorningDate !== today) {
+      lastMorningDate = today;
+      sendTimedGreeting('早上好！新的一天开始了。请给茵发一条温馨的早安问候，结合你对她的了解。要简短。');
+    } else if (hour >= 21 && hour <= 23 && lastEveningDate !== today) {
+      lastEveningDate = today;
+      sendTimedGreeting('夜深了。请给茵发一条温柔的晚安问候，结合你对她的了解。要简短。');
+    }
+  }
+}
+
+async function sendTimedGreeting(prompt) {
+  try {
+    var apiUrl = config.useMemory ? config.memoryUrl : config.apiUrl;
+    var apiHeaders = config.useMemory
+      ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer local' }
+      : { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + config.apiKey };
+    var apiModel = config.useMemory ? 'ebbingflow' : config.model;
+    var resp = await fetch(apiUrl, {
+      method: 'POST', headers: apiHeaders,
+      body: JSON.stringify({
+        model: apiModel,
+        messages: [{ role: 'system', content: config.systemPrompt }, { role: 'user', content: prompt }],
+        max_tokens: 128, temperature: 0.9
+      })
+    });
+    if (!resp.ok) return;
+    var data = await resp.json();
+    var text = data.choices[0].message.content || '';
+    var thinking = data.choices[0].message.reasoning_content || '';
+    if (text) {
+      var msg = { _id: ++MSG_ID_COUNTER, role: 'assistant', content: text, thinking: thinking, time: timeStr() };
+      messages.push(msg);
+      saveMessages(messages);
+      if (document.getElementById('chat-page').classList.contains('active')) {
+        renderMessageRaw(msg);
+        scrollMsgBottom();
+      }
+    }
+  } catch(e) { console.error('timed greeting error:', e); }
 }
 
 async function sendHeartbeatGreeting(idleMinutes) {
