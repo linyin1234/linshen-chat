@@ -390,7 +390,20 @@ body {
 
   <!-- ═══════════ PLACEHOLDER PAGES ═══════════ -->
   <div class="page" id="finance-page"><div class="chat-header"><div class="chat-header-left"><div class="chat-header-name">💰 记账</div></div></div><div class="page-scroll"><div class="placeholder" style="height:200px;display:flex;align-items:center;justify-content:center;">即将上线</div></div></div>
-  <div class="page" id="health-page"><div class="chat-header"><div class="chat-header-left"><div class="chat-header-name">❤️ 健康</div></div></div><div class="page-scroll"><div class="placeholder" style="height:200px;display:flex;align-items:center;justify-content:center;">即将上线</div></div></div>
+  <div class="page" id="health-page">
+    <div class="chat-header"><div class="chat-header-left"><div class="chat-header-name">❤️ 健康</div></div></div>
+    <div class="page-scroll" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="home-card">
+        <h4>🩸 经期记录</h4>
+        <div id="periodInfo" style="font-size:13px;line-height:1.8;"></div>
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <button class="btn primary" onclick="recordPeriodStart()">📝 记录今天为起始日</button>
+          <button class="btn" onclick="deleteLastPeriod()">撤销上次</button>
+        </div>
+        <div id="periodHistory" style="margin-top:10px;font-size:12px;color:var(--text-dim);"></div>
+      </div>
+    </div>
+  </div>
   <div class="page" id="calendar-page"><div class="chat-header"><div class="chat-header-left"><div class="chat-header-name">📅 日历</div></div></div><div class="page-scroll"><div class="placeholder" style="height:200px;display:flex;align-items:center;justify-content:center;">即将上线</div></div></div>
 
   <!-- ═══════════ BOTTOM NAV ═══════════ -->
@@ -832,6 +845,89 @@ function toggleClockStyle() {
   clockIsAnalog = !clockIsAnalog;
   $('clockDisplay').style.display = clockIsAnalog ? 'none' : 'block';
   $('analogClock').style.display = clockIsAnalog ? 'block' : 'none';
+}
+
+// ── Period Tracker ──
+var PERIOD_KEY = 'lin_shen_period_data';
+function loadPeriodData() {
+  try { var r = localStorage.getItem(PERIOD_KEY); return r ? JSON.parse(r) : { records: [] }; } catch(e) { return { records: [] }; }
+}
+function savePeriodData(d) { try { localStorage.setItem(PERIOD_KEY, JSON.stringify(d)); } catch(e) {} }
+var periodData = loadPeriodData();
+
+function recordPeriodStart() {
+  var today = new Date().toISOString().substring(0, 10);
+  // Don't duplicate
+  if (periodData.records.length > 0 && periodData.records[periodData.records.length - 1] === today) {
+    showToast('今天已记录'); return;
+  }
+  periodData.records.push(today);
+  periodData.records.sort();
+  savePeriodData(periodData);
+  renderPeriodTracker();
+  showToast('已记录 ✓');
+}
+
+function deleteLastPeriod() {
+  if (periodData.records.length === 0) { showToast('没有记录'); return; }
+  periodData.records.pop();
+  savePeriodData(periodData);
+  renderPeriodTracker();
+  showToast('已撤销');
+}
+
+function getAverageCycle() {
+  if (periodData.records.length < 2) return 28;
+  var sum = 0, count = 0;
+  var recent = periodData.records.slice(-6); // Last 6 cycles
+  for (var i = 1; i < recent.length; i++) {
+    var d1 = new Date(recent[i-1]), d2 = new Date(recent[i]);
+    sum += Math.round((d2 - d1) / 86400000);
+    count++;
+  }
+  return count > 0 ? Math.round(sum / count) : 28;
+}
+
+function predictNextPeriod() {
+  if (periodData.records.length === 0) return null;
+  var last = new Date(periodData.records[periodData.records.length - 1]);
+  var cycle = getAverageCycle();
+  last.setDate(last.getDate() + cycle);
+  return last.toISOString().substring(0, 10);
+}
+
+function renderPeriodTracker() {
+  var info = $('periodInfo'), hist = $('periodHistory');
+  if (!info) return;
+  var cycle = getAverageCycle();
+  var next = predictNextPeriod();
+  var html = '周期：约 <b>' + cycle + '</b> 天';
+  if (next) {
+    var nd = new Date(next);
+    var today = new Date();
+    var daysUntil = Math.round((nd - today) / 86400000);
+    if (daysUntil <= 3 && daysUntil >= 0) {
+      html += '<br>⚠️ 预计 <b>' + next + '</b>（还有 ' + daysUntil + ' 天）';
+    } else if (daysUntil < 0) {
+      html += '<br>预计已过，等待新记录';
+    } else {
+      html += '<br>预计下次：<b>' + next + '</b>（' + daysUntil + ' 天后）';
+    }
+  } else {
+    html += '<br>记录起始日后自动推算';
+  }
+  info.innerHTML = html;
+
+  // History
+  if (periodData.records.length > 0) {
+    var h = '历史记录：';
+    for (var i = Math.max(0, periodData.records.length - 6); i < periodData.records.length; i++) {
+      h += periodData.records[i] + (i < periodData.records.length - 1 ? ' → ' : '');
+    }
+    hist.textContent = h;
+  } else {
+    hist.textContent = '';
+  }
 }
 
 // Home page greeting
@@ -1442,6 +1538,7 @@ navigateTo = function(pageName) {
   origNavigateTo(pageName);
   if (pageName === 'settings') loadSettingsPage();
   if (pageName === 'skin') loadSkinPage();
+  if (pageName === 'health') renderPeriodTracker();
 };
 </script>
 </body>
