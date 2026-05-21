@@ -1332,6 +1332,7 @@ function checkHeartbeat() {
   // Send proactive message if idle too long
   if (idleMin > HEARTBEAT_IDLE_MINUTES && (config.apiKey || config.useMemory) && config.heartbeatEnabled && (Date.now() - lastHeartbeatTime) > HEARTBEAT_IDLE_MINUTES * 60000) {
     console.log('Heartbeat: sending greeting');
+    lastHeartbeatTime = Date.now(); // Set BEFORE async call to prevent race
     sendHeartbeatGreeting(idleMin);
   }
   // Time-based triggers
@@ -1380,7 +1381,6 @@ async function sendTimedGreeting(prompt) {
 }
 
 async function sendHeartbeatGreeting(idleMinutes) {
-  lastHeartbeatTime = Date.now();
   try {
     var hrs = Math.floor(idleMinutes / 60);
     var mins = Math.floor(idleMinutes % 60);
