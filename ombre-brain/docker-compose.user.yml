@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  ombre-brain:
+    image: p0luz/ombre-brain:latest
+    container_name: ombre-brain
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./obsidian:/app/obsidian
+    environment:
+      - OMBRE_API_KEY=${OMBRE_API_KEY:-}
+    restart: unless-stopped
