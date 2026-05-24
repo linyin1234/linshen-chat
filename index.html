@@ -379,12 +379,13 @@ body {
     </div>
     <div class="page-scroll" style="display:flex;flex-direction:column;gap:14px;">
       <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">DeepSeek API Key</label><input type="password" id="settingsApiKey" placeholder="sk-..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"><div class="error-msg" id="apiKeyError">需要先设置 API Key 才能对话</div></div>
-      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">API 地址</label><input type="text" id="settingsApiUrl" placeholder="https://api.deepseek.com/v1/chat/completions" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"></div>
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">API 地址</label><input type="text" id="settingsApiUrl" placeholder="/api/deepseek" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"></div>
       <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">模型名称</label><input type="text" id="settingsModel" placeholder="deepseek-chat" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"><div class="help-text">deepseek-chat / deepseek-reasoner / deepseek-v4-pro</div></div>
       <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">人设（System Prompt）</label><textarea id="settingsPrompt" placeholder="你是林深，一个..." style="width:100%;min-height:120px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;resize:vertical;line-height:1.5;"></textarea></div>
       <div><label style="display:flex;align-items:center;cursor:pointer;font-size:13px;"><input type="checkbox" id="settingsMemoryToggle" onchange="toggleMemoryMode()" style="width:auto;margin-right:8px;">启用 OmbreBrain 记忆引擎</label><div class="help-text" style="margin-top:4px;">勾选后对话会自动检索和存储记忆。需先启动 OmbreBrain Docker 容器。</div></div>
       <div id="memoryUrlGroupSettings" style="display:none;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">OmbreBrain 地址</label><input type="text" id="settingsMemoryUrl" placeholder="http://localhost:8000/v1/chat/completions" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"></div>
       <div><label style="display:flex;align-items:center;cursor:pointer;font-size:13px;"><input type="checkbox" id="settingsHeartbeatToggle" style="width:auto;margin-right:8px;">主动唤醒（心跳）</label><div class="help-text" style="margin-top:4px;">空闲30分钟后自动发送关心问候。可随时开关。</div></div>
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">GitHub Token（跨端同步用）</label><input type="password" id="settingsGistToken" placeholder="ghp_..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"><div class="help-text">用于 GitHub Gist 同步聊天记录。留空不启用同步。</div></div>
       <div style="border-top:1px solid var(--border);padding-top:12px;">
         <label style="display:flex;align-items:center;cursor:pointer;font-size:13px;margin-bottom:8px;"><input type="checkbox" id="settingsMCPToggle" onchange="toggleMCPMode()" style="width:auto;margin-right:8px;">🧰 MCP 工具框架</label>
         <div class="help-text" style="margin-bottom:10px;">开启后林深可调用工具（查时间、算数、搜歌等）。下方单独开关各项。</div>
@@ -1725,6 +1726,7 @@ function loadSettingsPage() {
   $('settingsMemoryToggle').checked = config.useMemory || false;
   $('settingsMemoryUrl').value = config.memoryUrl || 'http://localhost:8000/mcp';
   $('settingsHeartbeatToggle').checked = config.heartbeatEnabled || false;
+  $('settingsGistToken').value = config.gistToken || GIST_TOKEN || '';
   $('settingsMCPToggle').checked = config.mcpEnabled !== false;
   toggleMCPMode();
   renderMCPToolsList();
@@ -1732,11 +1734,13 @@ function loadSettingsPage() {
 }
 function saveSettingsPage() {
   config.apiKey = $('settingsApiKey').value.trim();
-  config.apiUrl = $('settingsApiUrl').value.trim() || 'https://api.deepseek.com/v1/chat/completions';
+  config.apiUrl = $('settingsApiUrl').value.trim() || '/api/deepseek';
   config.model = $('settingsModel').value.trim() || 'deepseek-chat';
   config.useMemory = $('settingsMemoryToggle').checked;
   config.memoryUrl = $('settingsMemoryUrl').value.trim() || 'http://localhost:8000/mcp';
   config.heartbeatEnabled = $('settingsHeartbeatToggle').checked;
+  config.gistToken = $('settingsGistToken').value.trim();
+  if (config.gistToken) { GIST_TOKEN = config.gistToken; initGistSync(); }
   config.mcpEnabled = $('settingsMCPToggle').checked;
   config.systemPrompt = $('settingsPrompt').value.trim();
   saveConfig(config); syncConfigToSupabase();
