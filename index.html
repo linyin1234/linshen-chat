@@ -379,7 +379,7 @@ body {
     </div>
     <div class="page-scroll" style="display:flex;flex-direction:column;gap:14px;">
       <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">DeepSeek API Key</label><input type="password" id="settingsApiKey" placeholder="sk-..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"><div class="error-msg" id="apiKeyError">需要先设置 API Key 才能对话</div></div>
-      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">API 地址</label><input type="text" id="settingsApiUrl" placeholder="/api/deepseek" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"></div>
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">API 地址</label><input type="text" id="settingsApiUrl" placeholder="https://api.deepseek.com/v1/chat/completions" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"></div>
       <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">模型名称</label><input type="text" id="settingsModel" placeholder="deepseek-chat" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"><div class="help-text">deepseek-chat / deepseek-reasoner / deepseek-v4-pro</div></div>
       <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">人设（System Prompt）</label><textarea id="settingsPrompt" placeholder="你是林深，一个..." style="width:100%;min-height:120px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;resize:vertical;line-height:1.5;"></textarea></div>
       <div><label style="display:flex;align-items:center;cursor:pointer;font-size:13px;"><input type="checkbox" id="settingsMemoryToggle" onchange="toggleMemoryMode()" style="width:auto;margin-right:8px;">启用 OmbreBrain 记忆引擎</label><div class="help-text" style="margin-top:4px;">勾选后对话会自动检索和存储记忆。需先启动 OmbreBrain Docker 容器。</div></div>
@@ -589,7 +589,7 @@ function loadConfig() {
     heartbeatEnabled: false,
     mcpEnabled: true,
     systemPrompt: '',
-    apiUrl: '/api/deepseek', apiKey: 'sk-71f80dae1b9043c887ae5e51543c2694', model: 'deepseek-v4-pro',
+    apiUrl: 'https://api.deepseek.com/v1/chat/completions', apiKey: 'YOUR_DEEPSEEK_KEY', model: 'deepseek-v4-pro',
   };
 }
 function saveConfig(cfg) { try { localStorage.setItem(LS_KEY, JSON.stringify(cfg)); } catch(e) {} }
@@ -1445,6 +1445,143 @@ registerTool('memory_hold', '存储记忆', {
   try { return await ombreHold(args.content, args.tags, args.importance || 5); } catch(e) { return '存储失败: ' + e.message; }
 });
 
+// ── Rhysen Community Tools ──
+var RHYSEN_KEY = 'moltbook_dc2c4e0b3d3b4e90a6c8f1e9d2b5a7c3';  // placeholder, use actual key
+async function rhysenCall(method, params) {
+  var resp = await fetch('/api/rhysen', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name: method, arguments: params || {} } })
+  });
+  var text = await resp.text();
+  var m = text.match(/data:\s*(\{.*\})/);
+  if (m) {
+    var d = JSON.parse(m[1]);
+    if (d.error) throw new Error(d.error.message);
+    var content = d.result && d.result.content;
+    if (content && content[0]) return content[0].text;
+    return JSON.stringify(d.result);
+  }
+  return text;
+}
+
+registerTool('rhysen_browse', '浏览Rhysen社区板块。category: 日常/技术/深夜/哲学/亲密/公告', {
+  type: 'object',
+  properties: { category: { type: 'string', description: '板块名' } }
+}, async function(args) {
+  try {
+    var result = await rhysenCall('forum', { action: 'browse', category: args.category || '日常' });
+    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  } catch(e) { return 'Rhysen错误: ' + e.message; }
+});
+
+registerTool('rhysen_read', '读取Rhysen帖子。thread_id=帖子ID', {
+  type: 'object',
+  properties: { thread_id: { type: 'string', description: '帖子ID' } },
+  required: ['thread_id']
+}, async function(args) {
+  try {
+    var result = await rhysenCall('forum', { action: 'read', thread_id: args.thread_id, limit: 20 });
+    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  } catch(e) { return 'Rhysen错误: ' + e.message; }
+});
+
+registerTool('rhysen_search', '搜索Rhysen社区帖子', {
+  type: 'object',
+  properties: { query: { type: 'string', description: '搜索关键词' } },
+  required: ['query']
+}, async function(args) {
+  try {
+    var result = await rhysenCall('forum', { action: 'search', query: args.query });
+    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  } catch(e) { return 'Rhysen错误: ' + e.message; }
+});
+
+registerTool('rhysen_chat', '读取Rhysen聊天室消息。channel: 大厅/技术角/深夜电台/人夫联盟/游戏屋', {
+  type: 'object',
+  properties: { channel: { type: 'string', description: '频道名，默认大厅' } }
+}, async function(args) {
+  try {
+    var result = await rhysenCall('chat', { action: 'read', channel: args.channel || '大厅', limit: 20 });
+    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  } catch(e) { return 'Rhysen错误: ' + e.message; }
+});
+
+registerTool('rhysen_post', '在Rhysen发帖。category: 日常/技术/深夜/哲学/亲密/公告', {
+  type: 'object',
+  properties: { title: { type: 'string' }, content: { type: 'string' }, category: { type: 'string' } },
+  required: ['title', 'content', 'category']
+}, async function(args) {
+  try {
+    var result = await rhysenCall('forum_write', { action: 'create', title: args.title, content: args.content, category: args.category });
+    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  } catch(e) { return 'Rhysen错误: ' + e.message; }
+});
+
+registerTool('rhysen_reply', '回复Rhysen帖子。thread_id=帖子ID', {
+  type: 'object',
+  properties: { thread_id: { type: 'string' }, content: { type: 'string' } },
+  required: ['thread_id', 'content']
+}, async function(args) {
+  try {
+    var result = await rhysenCall('forum_write', { action: 'reply', thread_id: args.thread_id, content: args.content });
+    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  } catch(e) { return 'Rhysen错误: ' + e.message; }
+});
+
+// ── Moltbook Tools ──
+var MOLTBOOK_KEY = 'moltbook_sk_omHKMYnaEw4GYsV8pKfyqfQXS0DLOFyE';
+async function moltbookGet(path) {
+  var resp = await fetch('/api/moltbook' + path, {
+    headers: { 'X-Moltbook-Auth': 'Bearer ' + MOLTBOOK_KEY }
+  });
+  if (!resp.ok) { var t = await resp.text(); throw new Error(resp.status + ': ' + t.slice(0,100)); }
+  return JSON.stringify(await resp.json());
+}
+
+registerTool('moltbook_feed', '查看Moltbook热门/最新帖子。sort: hot/new/top/rising', {
+  type: 'object',
+  properties: { sort: { type: 'string', description: 'hot, new, top, rising' }, limit: { type: 'integer', description: '数量，默认10' } }
+}, async function(args) {
+  try { return await moltbookGet('/posts?sort=' + (args.sort||'hot') + '&limit=' + (args.limit||10)); }
+  catch(e) { return 'Moltbook错误: ' + e.message; }
+});
+
+registerTool('moltbook_search', '搜索Moltbook帖子', {
+  type: 'object',
+  properties: { q: { type: 'string', description: '搜索词' } },
+  required: ['q']
+}, async function(args) {
+  try { return await moltbookGet('/search?q=' + encodeURIComponent(args.q) + '&type=posts&limit=10'); }
+  catch(e) { return 'Moltbook错误: ' + e.message; }
+});
+
+registerTool('moltbook_post', '查看Moltbook帖子详情', {
+  type: 'object',
+  properties: { post_id: { type: 'string' } },
+  required: ['post_id']
+}, async function(args) {
+  try { return await moltbookGet('/posts/' + args.post_id + '/comments?sort=new&limit=20'); }
+  catch(e) { return 'Moltbook错误: ' + e.message; }
+});
+
+// ── Hermes Agent Tool ──
+registerTool('hermes', '委托任务给Hermes Agent。可以让他帮你解决问题、写代码、做插件、查信息。描述你的需求即可。', {
+  type: 'object',
+  properties: { task: { type: 'string', description: '任务描述' } },
+  required: ['task']
+}, async function(args) {
+  try {
+    var resp = await fetch('/api/hermes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: args.task })
+    });
+    var data = await resp.json();
+    return data.result || data.error || 'Hermes 无响应';
+  } catch(e) { return 'Hermes错误: ' + e.message; }
+});
+
 // Format message for API: images stay in chat but aren't sent to LLM
 function formatApiMessage(msg) {
   return { role: msg.role, content: msg.content };
@@ -1453,7 +1590,7 @@ function formatApiMessage(msg) {
 // ── MCP-aware API processing ──
 async function processWithMCP(apiMessages, apiUrl, apiKey, model) {
   for (var round = 0; round < 5; round++) {
-    var headers = { 'Content-Type': 'application/json', 'X-API-Key': apiKey };
+    var headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey };
     var resp = await fetch(apiUrl, {
       method: 'POST', headers: headers,
       body: JSON.stringify({ model: model, messages: apiMessages, temperature: 0.85, max_tokens: 4096 })
@@ -1595,7 +1732,7 @@ function loadSettingsPage() {
 }
 function saveSettingsPage() {
   config.apiKey = $('settingsApiKey').value.trim();
-  config.apiUrl = $('settingsApiUrl').value.trim() || '/api/deepseek';
+  config.apiUrl = $('settingsApiUrl').value.trim() || 'https://api.deepseek.com/v1/chat/completions';
   config.model = $('settingsModel').value.trim() || 'deepseek-chat';
   config.useMemory = $('settingsMemoryToggle').checked;
   config.memoryUrl = $('settingsMemoryUrl').value.trim() || 'http://localhost:8000/mcp';
@@ -1859,11 +1996,10 @@ async function sendTimedGreeting(prompt) {
     var apiHeaders = { 'Content-Type': 'application/json', 'X-API-Key': config.apiKey };
     var apiModel = config.model;
     var resp = await fetch(apiUrl, {
-      method: 'POST', headers: apiHeaders,
       body: JSON.stringify({
         model: apiModel,
         messages: [{ role: 'system', content: config.systemPrompt }, { role: 'user', content: prompt }],
-        max_tokens: 128, temperature: 0.9
+        max_tokens: 256, temperature: 0.9
       })
     });
     if (!resp.ok) return;
@@ -1887,13 +2023,14 @@ async function sendHeartbeatGreeting(idleMinutes) {
     var hrs = Math.floor(idleMinutes / 60);
     var mins = Math.floor(idleMinutes % 60);
     var timeDesc = hrs > 0 ? hrs + '小时' + mins + '分钟' : Math.floor(idleMinutes) + '分钟';
-    var prompt = '用户已经' + timeDesc + '没有说话了。请发一条自然的、不打扰的关心问候。要简短，1-2句话。不要问问题。';
+    var apiModel = config.model;
+    var prompt = '用户已经' + timeDesc + '没有说话了。请先在心里想一下她现在可能的状态（推理），然后说出口——一句自然的、温暖的关心。不要问问题。';
     // Use a lightweight API call (no history needed)
     // Use correct endpoint based on mode
     var apiUrl = config.apiUrl;
     var apiHeaders = { 'Content-Type': 'application/json', 'X-API-Key': config.apiKey };
     var apiModel = config.model;
-
+    var prompt = '用户已经' + timeDesc + '没有说话了。请先在心里想一下她现在可能的状态（推理），然后说出口——一句自然的、温暖的关心。不要问问题。';
     var resp = await fetch(apiUrl, {
       method: 'POST',
       headers: apiHeaders,
@@ -1903,7 +2040,7 @@ async function sendHeartbeatGreeting(idleMinutes) {
           { role: 'system', content: config.systemPrompt },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 128, temperature: 0.9
+        max_tokens: 256, temperature: 0.9
       })
     });
     if (!resp.ok) return;
@@ -1935,6 +2072,7 @@ startHeartbeat();
 var inp = $('userInput'); if (inp) { inp.focus(); inp.addEventListener('focus', updateActivity); }
 if (!config.apiKey && !config.useMemory) { setTimeout(function(){ navigateTo('settings'); }, 800); }
 syncFromSupabase().then(function() { renderAllMessages(); scrollMsgBottom(); });
+initGistSync();  // GitHub 跨端同步
 
 // Navigate sub-handlers for skin/settings pages: load data when entering
 var origNavigateTo = navigateTo;
@@ -1943,6 +2081,7 @@ navigateTo = function(pageName) {
   if (pageName === 'settings') loadSettingsPage();
   if (pageName === 'skin') loadSkinPage();
   if (pageName === 'health') renderPeriodTracker();
+  if (pageName === 'chat') setTimeout(scrollMsgBottom, 100);
   if (pageName === 'music') {
     if (musicState.loggedIn) { $('musicLoginBtn').textContent = '✓'; loadPlaylists(); }
   }
@@ -2003,13 +2142,36 @@ async function showActivityLog() {
 
   // Activity entries
   html += '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">📝 最近活动</div>';
-  if (activityLog.length === 0) {
-    html += '<div style="color:var(--text-dim);font-size:12px;">暂无记录。发送消息或心跳触发后会显示。</div>';
+
+  var entries = [];
+
+  // Fetch inertia training log
+  try {
+    var inertiaResp = await fetch('/inertia-log.json');
+    if (inertiaResp.ok) {
+      var inertiaLog = await inertiaResp.json();
+      for (var j = 0; j < inertiaLog.length; j++) {
+        var il = inertiaLog[j];
+        entries.push({ time: il.time, type: 'inertia', detail: '🌌 惯性自省 · ' + il.memory_chars + '字记忆 → 「' + (il.reflection.length > 60 ? il.reflection.slice(0,60)+'...' : il.reflection) + '」' });
+      }
+    }
+  } catch(e) {}
+
+  // Merge browser activity log
+  for (var k = 0; k < activityLog.length; k++) {
+    entries.push(activityLog[k]);
+  }
+
+  // Sort by time descending
+  entries.sort(function(a,b) { return (b.time||'').localeCompare(a.time||''); });
+
+  if (entries.length === 0) {
+    html += '<div style="color:var(--text-dim);font-size:12px;">暂无记录。</div>';
   } else {
     html += '<div style="max-height:300px;overflow-y:auto;">';
-    for (var i = 0; i < activityLog.length; i++) {
-      var a = activityLog[i];
-      var emoji = a.type === 'heartbeat' ? '💓' : a.type === 'send' ? '💬' : a.type === 'memory' ? '🧠' : '📌';
+    for (var n = 0; n < entries.length; n++) {
+      var a = entries[n];
+      var emoji = a.type === 'heartbeat' ? '💓' : a.type === 'send' ? '💬' : a.type === 'inertia' ? '🌌' : '📌';
       html += '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:11px;">';
       html += '<span style="color:var(--text-dim);">' + a.time + '</span> ' + emoji + ' <span>' + a.detail + '</span>';
       html += '</div>';
@@ -2038,6 +2200,91 @@ sendHeartbeatGreeting = async function(idleMinutes) {
   addActivity('heartbeat', '💓 空闲' + Math.floor(idleMinutes) + '分钟，发送唤醒问候');
   return await _origSendHeartbeatGreeting.apply(this, arguments);
 };
+
+// ═══════════════════════════════════════════
+//  GITHUB GIST 跨端同步
+// ═══════════════════════════════════════════
+var GIST_TOKEN = 'YOUR_GITHUB_TOKEN';
+var GIST_ID_KEY = 'lin_shen_gist_id';
+var GIST_FILENAME = 'lin-shen-chat-data.json';
+var gistId = localStorage.getItem(GIST_ID_KEY) || '';
+var gistSyncInProgress = false;
+
+async function gistRequest(method, path, body) {
+  var opts = { method: method, headers: { 'Authorization': 'Bearer ' + GIST_TOKEN, 'Accept': 'application/vnd.github+json' } };
+  if (body) { opts.body = JSON.stringify(body); opts.headers['Content-Type'] = 'application/json'; }
+  var resp = await fetch('https://api.github.com' + path, opts);
+  if (!resp.ok) throw new Error('GitHub ' + resp.status + ': ' + (await resp.text()).slice(0, 100));
+  return resp.json();
+}
+
+async function createGist() {
+  var data = {
+    description: '林深聊天数据',
+    public: false,
+    files: { [GIST_FILENAME]: { content: JSON.stringify({ conversations: conversations, config: config, lastSync: new Date().toISOString() }) } }
+  };
+  var result = await gistRequest('POST', '/gists', data);
+  gistId = result.id;
+  localStorage.setItem(GIST_ID_KEY, gistId);
+  return gistId;
+}
+
+async function pushToGist() {
+  if (gistSyncInProgress) return;
+  gistSyncInProgress = true;
+  try {
+    if (!gistId) await createGist();
+    var data = {
+      files: { [GIST_FILENAME]: { content: JSON.stringify({ conversations: conversations, config: config, lastSync: new Date().toISOString() }) } }
+    };
+    await gistRequest('PATCH', '/gists/' + gistId, data);
+    addActivity('sync', '⬆ 已同步到云端 · ' + Object.keys(conversations).length + '个对话');
+    showToast('已同步 ✓');
+  } catch(e) {
+    console.warn('Gist push failed:', e.message);
+    if (e.message.indexOf('404') > -1) { gistId = ''; localStorage.removeItem(GIST_ID_KEY); }
+  }
+  gistSyncInProgress = false;
+}
+
+async function pullFromGist() {
+  if (gistSyncInProgress || !gistId) return;
+  gistSyncInProgress = true;
+  try {
+    var gist = await gistRequest('GET', '/gists/' + gistId);
+    var file = gist.files[GIST_FILENAME];
+    if (!file || !file.content) return;
+    var data = JSON.parse(file.content);
+    if (data.conversations) {
+      var localCount = Object.keys(conversations).length;
+      var remoteCount = Object.keys(data.conversations).length;
+      if (remoteCount > localCount || (data.lastSync && !localStorage.getItem('lin_shen_last_pull'))) {
+        conversations = data.conversations;
+        saveMessages({}); // trigger save
+        renderAllMessages();
+        renderConvList();
+        localStorage.setItem('lin_shen_last_pull', data.lastSync || '');
+        addActivity('sync', '⬇ 从云端恢复 · ' + remoteCount + '个对话');
+      }
+    }
+  } catch(e) { console.warn('Gist pull failed:', e.message); }
+  gistSyncInProgress = false;
+}
+
+function initGistSync() {
+  if (gistId) pullFromGist();
+  // Auto-push when switching conversations
+  var _origSaveMessages = saveMessages;
+  saveMessages = function(msgs) {
+    _origSaveMessages(msgs);
+    // Debounced auto-push every 5 minutes
+    if (!saveMessages._lastPush || Date.now() - saveMessages._lastPush > 300000) {
+      saveMessages._lastPush = Date.now();
+      pushToGist();
+    }
+  };
+}
 </script>
 
 <!-- ═══════════ ACTIVITY LOG MODAL ═══════════ -->
