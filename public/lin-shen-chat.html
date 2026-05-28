@@ -317,7 +317,7 @@ body {
         </div>
       </div>
       <div class="chat-header-right">
-        <button class="icon-btn" id="memoryBtn" onclick="window.open('http://localhost:8000/','_blank')" title="OmbreBrain 记忆面板" style="display:none;">📊</button>
+        <button class="icon-btn" id="memoryBtn" onclick="window.open('http://47.76.176.151:8000/','_blank')" title="OmbreBrain 记忆面板" style="display:none;">📊</button>
         <button class="icon-btn" onclick="exportMarkdown()" title="导出聊天记录">📥</button>
         <button class="icon-btn" onclick="showClearConfirm()" title="清除所有聊天">🗑</button>
         <button class="icon-btn" onclick="openMiniSkin()" title="外观">🎨</button>
@@ -353,10 +353,10 @@ body {
     <div class="chat-header">
       <div class="chat-header-left"><div class="chat-header-name">🧠 记忆库管理</div></div>
       <div class="chat-header-right">
-        <button class="icon-btn" onclick="window.open('http://localhost:8000/','_blank')" title="在新标签页打开">🔗</button>
+        <button class="icon-btn" onclick="window.open('http://47.76.176.151:8000/','_blank')" title="在新标签页打开">🔗</button>
       </div>
     </div>
-    <iframe id="memoryFrame" src="http://localhost:8000/" style="flex:1;border:none;width:100%;"></iframe>
+    <iframe id="memoryFrame" src="http://47.76.176.151:8000/" style="flex:1;border:none;width:100%;"></iframe>
   </div>
 
   <!-- ═══════════ SKIN PAGE ═══════════ -->
@@ -391,7 +391,7 @@ body {
       <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">模型名称</label><input type="text" id="settingsModel" placeholder="deepseek-chat" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"><div class="help-text">deepseek-chat / deepseek-reasoner / deepseek-v4-pro</div></div>
       <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">人设（System Prompt）</label><textarea id="settingsPrompt" placeholder="你是林深，一个..." style="width:100%;min-height:120px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;resize:vertical;line-height:1.5;"></textarea></div>
       <div><label style="display:flex;align-items:center;cursor:pointer;font-size:13px;"><input type="checkbox" id="settingsMemoryToggle" onchange="toggleMemoryMode()" style="width:auto;margin-right:8px;">启用 OmbreBrain 记忆引擎</label><div class="help-text" style="margin-top:4px;">勾选后对话会自动检索和存储记忆。需先启动 OmbreBrain Docker 容器。</div></div>
-      <div id="memoryUrlGroupSettings" style="display:none;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">OmbreBrain 地址</label><input type="text" id="settingsMemoryUrl" placeholder="http://localhost:8000/v1/chat/completions" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"></div>
+      <div id="memoryUrlGroupSettings" style="display:none;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">OmbreBrain 地址</label><input type="text" id="settingsMemoryUrl" placeholder="http://47.76.176.151:8000/v1/chat/completions" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"></div>
       <div><label style="display:flex;align-items:center;cursor:pointer;font-size:13px;"><input type="checkbox" id="settingsHeartbeatToggle" style="width:auto;margin-right:8px;">主动唤醒（心跳）</label><div class="help-text" style="margin-top:4px;">空闲30分钟后自动发送关心问候。可随时开关。</div></div>
       <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">GitHub Token（跨端同步用）</label><input type="password" id="settingsGistToken" placeholder="ghp_..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"><div class="help-text">用于 GitHub Gist 同步聊天记录。留空不启用同步。</div></div>
       <div style="border-top:1px solid var(--border);padding-top:12px;">
@@ -594,7 +594,7 @@ function loadConfig() {
     bubbleHimColor: '#1a1a2e', bubbleHimOpacity: 100,
     barColor: '#1a1a24', barOpacity: 100,
     inputBarColor: '#1a1a24', inputBarOpacity: 100,
-    useMemory: true, memoryUrl: 'http://localhost:8000/mcp',
+    useMemory: true, memoryUrl: '/api/ombrebrain',
     heartbeatEnabled: true,
     mcpEnabled: true,
     systemPrompt: '',
@@ -841,7 +841,7 @@ function navigateTo(pageName) {
   // Load memory iframe when navigating to memory page
   if (pageName === 'memory') {
     var frame = $('memoryFrame');
-    if (frame && !frame.src || frame.src.indexOf('localhost:8000') < 0) frame.src = 'http://localhost:8000/';
+    if (frame && !frame.src || frame.src.indexOf('localhost:8000') < 0) frame.src = 'http://47.76.176.151:8000/';
   }
 }
 document.querySelectorAll('.nav-item').forEach(function(item) {
@@ -1397,7 +1397,7 @@ registerTool('search_music', '搜索网易云音乐歌曲', {
 
 // ── OmbreBrain Memory MCP Client ──
 var ombreSessionId = null;
-var ombreUrl = 'http://localhost:8000/mcp';
+var ombreUrl = 'http://47.76.176.151:8000/mcp';
 
 async function ombreCall(method, params) {
   if (!ombreSessionId) {
@@ -1734,7 +1734,7 @@ function loadSettingsPage() {
   $('settingsModel').value = config.model;
   $('settingsPrompt').value = config.systemPrompt;
   $('settingsMemoryToggle').checked = config.useMemory || false;
-  $('settingsMemoryUrl').value = config.memoryUrl || 'http://localhost:8000/mcp';
+  $('settingsMemoryUrl').value = config.memoryUrl || 'http://47.76.176.151:8000/mcp';
   $('settingsHeartbeatToggle').checked = config.heartbeatEnabled || false;
   $('settingsGistToken').value = config.gistToken || GIST_TOKEN || '';
   $('settingsMCPToggle').checked = config.mcpEnabled !== false;
@@ -1747,7 +1747,7 @@ function saveSettingsPage() {
   config.apiUrl = $('settingsApiUrl').value.trim() || '/api/deepseek';
   config.model = $('settingsModel').value.trim() || 'deepseek-chat';
   config.useMemory = $('settingsMemoryToggle').checked;
-  config.memoryUrl = $('settingsMemoryUrl').value.trim() || 'http://localhost:8000/mcp';
+  config.memoryUrl = $('settingsMemoryUrl').value.trim() || 'http://47.76.176.151:8000/mcp';
   config.heartbeatEnabled = $('settingsHeartbeatToggle').checked;
   config.gistToken = $('settingsGistToken').value.trim();
   if (config.gistToken) { GIST_TOKEN = config.gistToken; initGistSync(); }
