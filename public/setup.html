@@ -1,0 +1,13 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>林深</title></head>
+<body style="background:#0f0f14;color:#e4e0dc;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+<div style="text-align:center"><h1>🌙</h1><p id="m">正在恢复数据...</p></div>
+<script>
+fetch('/api/migrated-data').then(r=>r.json()).then(d=>{
+if(d.conversations&&d.conversations.list&&d.conversations.list[0]){
+  localStorage.setItem('lin_shen_chat_history_v5',JSON.stringify(d.conversations.list[0].messages));
+  if(d.config) localStorage.setItem('lin_shen_chat_config_v5',JSON.stringify(d.config));
+  document.getElementById('m').textContent='数据恢复成功！跳转中...';
+  setTimeout(function(){location.href='/lin-shen-chat.html'},800);
+}else{document.getElementById('m').textContent='没有找到迁移数据。请先在旧电脑上执行迁移命令。'}
+}).catch(e=>{document.getElementById('m').textContent='错误:'+e.message});
+</script></body></html>

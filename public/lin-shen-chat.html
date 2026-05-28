@@ -1,0 +1,2375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>林深</title>
+<style>
+:root {
+  --bg: #0f0f14; --surface: #1a1a24; --surface-hover: #22222e;
+  --text: #e4e0dc; --text-dim: #8b8b96; --accent: #a78bfa;
+  --accent-soft: rgba(167,139,250,0.15);
+  --bubble-him: #1a1a2e; --bubble-me: rgba(167,139,250,0.15);
+  --input-surface: #1a1a24; --border: #2a2a38; --danger: #f87171;
+  --think-bg: #14141e; --think-border: #1e1e30;
+  --radius: 16px;
+  --font: -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC",sans-serif;
+  --nav-height: 64px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--font);
+  height: 100dvh; overflow: hidden; -webkit-tap-highlight-color: transparent;
+}
+#app { height:100%; display:flex; flex-direction:column; }
+
+/* ── Pages ── */
+.page { display:none; flex:1; flex-direction:column; overflow:hidden; }
+.page.active { display:flex; }
+.page-scroll { flex:1; overflow-y:auto; padding:20px; }
+.page-scroll::-webkit-scrollbar { width:4px; }
+.page-scroll::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+/* ── Bottom Nav ── */
+.bottom-nav {
+  height:var(--nav-height); background:var(--surface);
+  border-top:1px solid var(--border); display:flex; flex-shrink:0;
+  align-items:center; justify-content:space-around; padding:0 4px;
+}
+.nav-item {
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  padding:6px 10px; border-radius:10px; cursor:pointer;
+  color:var(--text-dim); font-size:10px; transition:all 0.15s;
+  border:none; background:none; font-family:var(--font); min-width:52px;
+}
+.nav-item .ni { font-size:20px; line-height:1; }
+.nav-item:hover { color:var(--text); background:var(--surface-hover); }
+.nav-item.active { color:var(--accent); }
+
+/* ── Home Page ── */
+#home-page .page-scroll { display:flex; flex-direction:column; gap:16px; }
+.welcome-bar {
+  padding:16px 20px; background:var(--surface); border-radius:14px;
+  border:1px solid var(--border);
+}
+.welcome-bar .greeting { font-size:18px; font-weight:600; margin-bottom:4px; }
+.welcome-bar .date-sub { font-size:12px; color:var(--text-dim); }
+.home-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.home-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:14px; padding:16px; min-height:140px;
+}
+.home-card.full { grid-column:1/-1; }
+.home-card h4 { font-size:13px; color:var(--text-dim); margin-bottom:10px; font-weight:500; }
+.home-card .placeholder {
+  color:var(--text-dim); font-size:12px; opacity:0.5;
+  display:flex; align-items:center; justify-content:center; height:60px;
+}
+
+/* Calendar widget */
+.cal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.cal-header button { background:none; border:none; color:var(--text); cursor:pointer; font-size:14px; padding:2px 6px; }
+.cal-header .month-label { font-size:13px; font-weight:600; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; text-align:center; font-size:11px; }
+.cal-grid .day-head { color:var(--text-dim); padding:4px 0; font-size:10px; }
+.cal-grid .day { padding:6px 0; border-radius:6px; cursor:default; }
+.cal-grid .day:hover { background:var(--surface-hover); }
+.cal-grid .day.today { background:var(--accent); color:#fff; font-weight:600; }
+.cal-grid .day.empty { cursor:default; }
+.cal-grid .day.empty:hover { background:none; }
+
+/* Quick actions */
+.quick-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.quick-btn {
+  padding:8px 16px; border-radius:20px; border:1px solid var(--border);
+  background:transparent; color:var(--text); font-size:12px;
+  cursor:pointer; font-family:var(--font); transition:all 0.15s;
+}
+.quick-btn:hover { background:var(--accent-soft); border-color:var(--accent); }
+
+/* ── Chat page with sidebar ── */
+#chat-page { flex-direction:row; }
+.chat-sidebar {
+  width:220px; background:var(--surface); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; flex-shrink:0; overflow:hidden;
+}
+.chat-main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.sidebar-header { padding:14px; border-bottom:1px solid var(--border); display:flex; gap:6px; align-items:center; }
+.sidebar-header input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:7px 10px; color:var(--text); font-size:12px; font-family:var(--font); outline:none; }
+.sidebar-header input:focus { border-color:var(--accent); }
+.sidebar-add { width:28px; height:28px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--accent); cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sidebar-add:hover { background:var(--surface-hover); }
+.conv-list { flex:1; overflow-y:auto; }
+.conv-list::-webkit-scrollbar { width:3px; }
+.conv-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+.conv-item { padding:12px 14px; cursor:pointer; border-bottom:1px solid var(--border); transition:background 0.1s; display:flex; flex-direction:column; gap:2px; }
+.conv-item:hover { background:var(--surface-hover); }
+.conv-item.active { background:var(--accent-soft); border-left:2px solid var(--accent); }
+.conv-item .conv-name { font-size:13px; font-weight:500; display:flex; justify-content:space-between; align-items:center; }
+.conv-item .conv-date { font-size:10px; color:var(--text-dim); }
+.conv-item .conv-preview { font-size:11px; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:170px; }
+.conv-item .conv-del { opacity:0; font-size:12px; cursor:pointer; color:var(--text-dim); transition:opacity 0.15s; }
+.conv-item:hover .conv-del { opacity:0.5; }
+.conv-item .conv-del:hover { color:var(--danger); opacity:1; }
+
+/* Mobile responsive sidebar */
+@media (max-width:640px) {
+  .chat-sidebar { position:fixed; left:0; top:0; bottom:var(--nav-height); z-index:50; width:260px; transform:translateX(-100%); transition:transform 0.25s ease; box-shadow:2px 0 20px rgba(0,0,0,0.5); }
+  .chat-sidebar.open { transform:translateX(0); }
+  .sidebar-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:49; }
+  .sidebar-backdrop.show { display:block; }
+  #chat-page { position:relative; }
+}
+@media (min-width:641px) {
+  .sidebar-toggle-btn { display:none; }
+}
+.chat-header {
+  background:var(--surface); border-bottom:1px solid var(--border);
+  padding:12px 16px; display:flex; align-items:center;
+  justify-content:space-between; flex-shrink:0;
+}
+.chat-header-left { display:flex; align-items:center; gap:10px; }
+.avatar {
+  width:36px; height:36px; border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),#7c3aed);
+  background-size:cover; background-position:center;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; flex-shrink:0;
+}
+.chat-header-name { font-size:15px; font-weight:600; }
+.chat-header-status { font-size:11px; color:var(--accent); transition:color 0.3s; }
+.chat-header-status.pulse { animation:pulse 0.6s ease; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+.chat-header-right { display:flex; gap:8px; }
+.icon-btn {
+  width:32px; height:32px; border-radius:8px;
+  border:1px solid var(--border); background:transparent;
+  color:var(--text-dim); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; transition:all 0.15s;
+}
+.icon-btn:hover { background:var(--surface-hover); color:var(--text); }
+
+.msg-area { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:8px; scroll-behavior:smooth; }
+.msg-area::-webkit-scrollbar { width:4px; }
+.msg-area::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+.msg { display:flex; flex-direction:column; max-width:85%; animation:fadeIn 0.25s ease; position:relative; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.msg.him { align-self:flex-start; width:100%; max-width:100%; }
+.msg.me { align-self:flex-end; }
+.msg-content { padding:10px 14px; border-radius:var(--radius); font-size:14px; line-height:1.6; word-break:break-word; white-space:pre-wrap; }
+.msg.him .msg-content { background:var(--bubble-him,#1a1a2e); border-bottom-left-radius:4px; }
+.msg.me .msg-content { background:var(--bubble-me,rgba(167,139,250,0.15)); border-bottom-right-radius:4px; }
+.msg-time { font-size:10px; color:var(--text-dim); margin-top:3px; padding:0 4px; }
+.msg.me .msg-time { text-align:right; }
+.msg-img { max-width:200px; max-height:300px; border-radius:10px; display:block; margin:4px 0; cursor:pointer; }
+.msg-img:hover { opacity:0.9; }
+.img-preview-thumb { width:40px; height:40px; border-radius:8px; object-fit:cover; border:1px solid var(--border); }
+.img-preview-close { position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--danger); color:#fff; border:none; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+.time-separator { text-align:center; font-size:11px; color:var(--text-dim); padding:8px 0; opacity:0.5; }
+
+.msg-del { position:absolute; top:4px; width:22px; height:22px; border-radius:50%; border:none; background:transparent; color:var(--text-dim); font-size:12px; cursor:pointer; display:none; align-items:center; justify-content:center; opacity:0.6; transition:all 0.15s; z-index:5; }
+.msg.me .msg-del { right:-6px; } .msg.him .msg-del { right:6px; }
+.msg-del:hover { opacity:1; color:var(--danger); background:rgba(248,113,113,0.1); }
+.msg:hover .msg-del { display:flex; }
+@media(hover:none){ .msg-del { display:flex; opacity:0.3; } }
+
+.think-block { align-self:flex-start; max-width:100%; margin-bottom:2px; }
+.think-toggle { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:10px; background:var(--think-bg); border:1px solid var(--think-border); color:var(--text-dim); font-size:12px; cursor:pointer; font-family:var(--font); transition:all 0.15s; }
+.think-toggle:hover { color:var(--accent); }
+.think-toggle .arrow { font-size:10px; transition:transform 0.2s; display:inline-block; }
+.think-toggle.open .arrow { transform:rotate(90deg); }
+.think-body { display:none; margin-top:4px; padding:10px 14px; border-radius:12px; background:var(--think-bg); border-left:2px solid var(--accent); font-size:12px; line-height:1.6; color:var(--text-dim); white-space:pre-wrap; word-break:break-word; max-height:300px; overflow-y:auto; }
+.think-body.show { display:block; }
+
+.typing-indicator { align-self:flex-start; padding:10px 14px; background:var(--bubble-him); border-radius:var(--radius); border-bottom-left-radius:4px; display:none; }
+.typing-indicator.active { display:block; }
+.typing-dots { display:flex; gap:4px; }
+.typing-dots span { width:6px; height:6px; background:var(--accent); border-radius:50%; animation:bounce 1.4s infinite ease-in-out; }
+.typing-dots span:nth-child(2) { animation-delay:0.2s; }
+.typing-dots span:nth-child(3) { animation-delay:0.4s; }
+@keyframes bounce { 0%,80%,100%{transform:scale(0.6);opacity:0.4} 40%{transform:scale(1);opacity:1} }
+
+.input-area { background:var(--input-surface,#1a1a24); border-top:1px solid var(--border); padding:10px 12px; display:flex; gap:8px; flex-shrink:0; }
+.input-area input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:24px; padding:10px 16px; color:var(--text); font-size:14px; font-family:var(--font); outline:none; transition:border-color 0.15s; }
+.input-area input:focus { border-color:var(--accent); }
+.input-area input::placeholder { color:var(--text-dim); }
+.send-btn { width:40px; height:40px; border-radius:50%; border:none; background:var(--accent); color:#fff; font-size:16px; cursor:pointer; flex-shrink:0; transition:opacity 0.15s; display:flex; align-items:center; justify-content:center; }
+.send-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.send-btn:not(:disabled):hover { opacity:0.85; }
+
+.welcome { text-align:center; padding:40px 20px; color:var(--text-dim); }
+.welcome .wave { font-size:40px; margin-bottom:12px; }
+.welcome h2 { font-size:20px; color:var(--text); margin-bottom:8px; }
+.welcome p { font-size:13px; line-height:1.6; }
+.welcome .setup-hint { display:inline-block; margin-top:16px; padding:10px 24px; background:var(--accent); color:#fff; border:none; border-radius:20px; font-size:14px; cursor:pointer; font-family:var(--font); }
+.welcome .setup-hint:hover { opacity:0.85; }
+
+/* Overlays */
+.confirm-overlay,.settings-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center; }
+.settings-overlay { align-items:flex-end; }
+.confirm-overlay.show,.settings-overlay.show { display:flex; }
+.confirm-box { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; max-width:300px; text-align:center; }
+.confirm-box p { font-size:14px; margin-bottom:16px; line-height:1.5; }
+.confirm-box .confirm-actions { display:flex; gap:8px; justify-content:center; }
+.settings-panel { background:var(--surface); border-radius:20px 20px 0 0; width:100%; max-width:500px; max-height:85dvh; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px; animation:slideUp 0.25s ease; }
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.settings-panel h3 { font-size:16px; margin-bottom:2px; }
+.settings-panel label { font-size:12px; color:var(--text-dim); margin-bottom:4px; display:block; }
+.settings-panel input,.settings-panel textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13px; font-family:var(--font); outline:none; resize:vertical; }
+.settings-panel textarea { min-height:120px; font-size:12px; line-height:1.5; }
+.settings-panel input:focus,.settings-panel textarea:focus { border-color:var(--accent); }
+.settings-panel .help-text { font-size:11px; color:var(--text-dim); margin-top:-8px; }
+.settings-actions { display:flex; gap:8px; justify-content:flex-end; }
+.btn { padding:8px 20px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--text); font-size:13px; cursor:pointer; transition:all 0.15s; font-family:var(--font); }
+.btn:hover { background:var(--surface-hover); }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+.btn.primary:hover { opacity:0.85; }
+.confirm-box .btn.danger { border-color:var(--danger); color:var(--danger); }
+.confirm-box .btn.danger:hover { background:rgba(248,113,113,0.1); }
+.toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:10px 20px; font-size:13px; z-index:300; animation:toastIn 0.3s ease; pointer-events:none; }
+@keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+.error-msg { color:var(--danger); font-size:12px; margin-top:4px; display:none; }
+.error-msg.show { display:block; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ═══════════ HOME PAGE ═══════════ -->
+  <div class="page active" id="home-page">
+    <div class="page-scroll">
+      <div class="welcome-bar">
+        <div class="greeting" id="greetingText">下午好，茵</div>
+        <div class="date-sub" id="dateText"></div>
+        <div style="font-size:32px;font-weight:200;margin-top:8px;letter-spacing:2px;" id="clockDisplay">00:00</div>
+        <div style="display:none;" id="analogClock">
+          <svg width="80" height="80" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="var(--text-dim)" stroke-width="2" opacity="0.3"/>
+            <line id="hourHand" x1="50" y1="50" x2="50" y2="28" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
+            <line id="minHand" x1="50" y1="50" x2="50" y2="18" stroke="var(--text)" stroke-width="2" stroke-linecap="round"/>
+            <line id="secHand" x1="50" y1="50" x2="50" y2="15" stroke="var(--accent)" stroke-width="1" stroke-linecap="round"/>
+            <circle cx="50" cy="50" r="3" fill="var(--accent)"/>
+          </svg>
+        </div>
+        <button onclick="toggleClockStyle()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:11px;margin-top:4px;">切换样式</button>
+      </div>
+      <div class="home-grid">
+        <div class="home-card full" id="calendarCard">
+          <div class="cal-header">
+            <button onclick="calPrevMonth()">◀</button>
+            <span class="month-label" id="calMonthLabel"></span>
+            <button onclick="calNextMonth()">▶</button>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
+        <div class="home-card">
+          <h4>📋 待办</h4>
+          <div class="placeholder">即将上线</div>
+        </div>
+        <div class="home-card">
+          <h4>❤️ 健康</h4>
+          <div class="placeholder">即将上线</div>
+        </div>
+        <div class="home-card">
+          <h4>📊 统计</h4>
+          <div class="placeholder">即将上线</div>
+        </div>
+        <div class="home-card">
+          <h4>⚡ 快捷</h4>
+          <div class="quick-actions">
+            <button class="quick-btn" onclick="navigateTo('chat')">💬 聊天</button>
+            <button class="quick-btn" onclick="navigateTo('memory')">🧠 记忆</button>
+            <button class="quick-btn" onclick="showActivityLog()">📋 活动</button>
+            <button class="quick-btn" onclick="syncNow()">🔄 同步</button>
+            <button class="quick-btn" onclick="navigateTo('skin')">🎨 外观</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ CHAT PAGE ═══════════ -->
+  <div class="page" id="chat-page">
+    <div class="chat-sidebar">
+      <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
+      <div class="sidebar-header">
+        <input type="text" id="searchInput" placeholder="🔍 搜索消息..." oninput="searchMessages()">
+        <button class="sidebar-add" onclick="newConversation()" title="新建对话">+</button>
+      </div>
+      <div class="conv-list" id="convList"></div>
+    </div>
+    <div class="chat-main">
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <button class="icon-btn sidebar-toggle-btn" onclick="toggleSidebar()" style="margin-right:4px;">☰</button>
+        <div class="avatar" id="avatarEl">🌙</div>
+        <div>
+          <div class="chat-header-name" id="nameEl">林深</div>
+          <div class="chat-header-status">在线 · 在等你</div>
+        </div>
+      </div>
+      <div class="chat-header-right">
+        <button class="icon-btn" id="memoryBtn" onclick="window.open('http://localhost:8000/','_blank')" title="OmbreBrain 记忆面板" style="display:none;">📊</button>
+        <button class="icon-btn" onclick="exportMarkdown()" title="导出聊天记录">📥</button>
+        <button class="icon-btn" onclick="showClearConfirm()" title="清除所有聊天">🗑</button>
+        <button class="icon-btn" onclick="openMiniSkin()" title="外观">🎨</button>
+        <button class="icon-btn" onclick="navigateTo('settings')" title="设置">⚙</button>
+      </div>
+    </div>
+    <div class="msg-area" id="msgArea">
+      <div class="welcome" id="welcomeEl">
+        <div class="wave">🌙</div>
+        <h2 id="greetingName">你好，茵</h2>
+        <p id="greetingSubtext">林深在等你</p>
+        <button class="setup-hint" onclick="navigateTo('settings')">开始设置 →</button>
+      </div>
+      <div class="typing-indicator" id="typing">
+        <div class="typing-dots"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+    <div class="input-area">
+      <input type="file" id="imageInput" accept="image/*" onchange="handleImageSelect()" style="display:none;">
+      <div id="imagePreview" style="display:none;position:relative;flex-shrink:0;"></div>
+      <textarea id="userInput" placeholder="说点什么..." autocomplete="off" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"
+        oninput="this.style.height='';this.style.height=Math.min(150,this.scrollHeight)+'px';"
+        style="resize:none;overflow-y:auto;max-height:150px;min-height:44px;"></textarea>
+      <button class="icon-btn" onclick="$('imageInput').click()" title="发送图片" style="flex-shrink:0;">🖼</button>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()">↑</button>
+    </div>
+    </div><!-- .chat-main -->
+  </div>
+
+  <!-- ═══════════ MEMORY PAGE ═══════════ -->
+  <div class="page" id="memory-page">
+    <div class="chat-header">
+      <div class="chat-header-left"><div class="chat-header-name">🧠 记忆库管理</div></div>
+      <div class="chat-header-right">
+        <button class="icon-btn" onclick="window.open('http://localhost:8000/','_blank')" title="在新标签页打开">🔗</button>
+      </div>
+    </div>
+    <iframe id="memoryFrame" src="http://localhost:8000/" style="flex:1;border:none;width:100%;"></iframe>
+  </div>
+
+  <!-- ═══════════ SKIN PAGE ═══════════ -->
+  <div class="page" id="skin-page">
+    <div class="chat-header">
+      <div class="chat-header-left"><div class="chat-header-name">🎨 外观</div></div>
+      <div class="chat-header-right"></div>
+    </div>
+    <div class="page-scroll" style="display:flex;flex-direction:column;gap:14px;">
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">昵称</label><input type="text" id="skinNickname" placeholder="林深" maxlength="20" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"></div>
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">头像</label><div style="display:flex;gap:8px;align-items:center;"><input type="text" id="skinAvatar" placeholder="🌙" maxlength="4" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"><span style="color:var(--text-dim);font-size:12px;">或</span><label class="btn" style="white-space:nowrap;cursor:pointer;margin:0;">📷 上传<input type="file" id="avatarFileInput" accept="image/*" onchange="handleAvatarUpload()" style="display:none;"></label></div><div class="help-text">emoji 或上传图片，图片优先显示</div></div>
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">聊天背景</label><div style="display:flex;gap:8px;align-items:center;"><input type="color" id="bgColorInput" value="#0f0f14" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" onchange="previewBgColor()"><input type="text" id="bgImageInput" placeholder="图片链接" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"><label class="btn" style="white-space:nowrap;cursor:pointer;margin:0;">📷<input type="file" id="bgFileInput" accept="image/*" onchange="handleBgUpload()" style="display:none;"></label></div></div>
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">我的气泡</label><div style="display:flex;gap:8px;align-items:center;"><input type="color" id="bubbleMeColorInput" value="#a78bfa" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" oninput="previewBubbles()"><span style="color:var(--text-dim);font-size:12px;">透明度</span><input type="range" id="bubbleMeOpacityInput" min="5" max="40" value="15" style="flex:1;" oninput="previewBubbles()"></div></div>
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">他的气泡</label><div style="display:flex;gap:8px;align-items:center;"><input type="color" id="bubbleHimColorInput" value="#1a1a2e" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" oninput="previewBubbles()"><span style="color:var(--text-dim);font-size:12px;">透明度</span><input type="range" id="bubbleHimOpacityInput" min="30" max="100" value="100" style="flex:1;" oninput="previewBubbles()"></div></div>
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">顶栏颜色</label><div style="display:flex;gap:8px;align-items:center;"><input type="color" id="barColorInput" value="#1a1a24" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" oninput="previewBarColor()"><span style="color:var(--text-dim);font-size:12px;">透明度</span><input type="range" id="barOpacityInput" min="50" max="100" value="100" style="flex:1;" oninput="previewBarColor()"></div></div>
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">输入栏颜色</label><div style="display:flex;gap:8px;align-items:center;"><input type="color" id="inputBarColorInput" value="#1a1a24" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" oninput="previewInputBarColor()"><span style="color:var(--text-dim);font-size:12px;">透明度</span><input type="range" id="inputBarOpacityInput" min="50" max="100" value="100" style="flex:1;" oninput="previewInputBarColor()"></div></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn primary" onclick="saveSkinPage()">保存外观</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ SETTINGS PAGE ═══════════ -->
+  <div class="page" id="settings-page">
+    <div class="chat-header">
+      <div class="chat-header-left"><div class="chat-header-name">⚙ 设置</div></div>
+      <div class="chat-header-right"></div>
+    </div>
+    <div class="page-scroll" style="display:flex;flex-direction:column;gap:14px;">
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">DeepSeek API Key</label><input type="password" id="settingsApiKey" placeholder="sk-..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"><div class="error-msg" id="apiKeyError">需要先设置 API Key 才能对话</div></div>
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">API 地址</label><input type="text" id="settingsApiUrl" placeholder="/api/deepseek" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"></div>
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">模型名称</label><input type="text" id="settingsModel" placeholder="deepseek-chat" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"><div class="help-text">deepseek-chat / deepseek-reasoner / deepseek-v4-pro</div></div>
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">人设（System Prompt）</label><textarea id="settingsPrompt" placeholder="你是林深，一个..." style="width:100%;min-height:120px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;resize:vertical;line-height:1.5;"></textarea></div>
+      <div><label style="display:flex;align-items:center;cursor:pointer;font-size:13px;"><input type="checkbox" id="settingsMemoryToggle" onchange="toggleMemoryMode()" style="width:auto;margin-right:8px;">启用 OmbreBrain 记忆引擎</label><div class="help-text" style="margin-top:4px;">勾选后对话会自动检索和存储记忆。需先启动 OmbreBrain Docker 容器。</div></div>
+      <div id="memoryUrlGroupSettings" style="display:none;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">OmbreBrain 地址</label><input type="text" id="settingsMemoryUrl" placeholder="http://localhost:8000/v1/chat/completions" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"></div>
+      <div><label style="display:flex;align-items:center;cursor:pointer;font-size:13px;"><input type="checkbox" id="settingsHeartbeatToggle" style="width:auto;margin-right:8px;">主动唤醒（心跳）</label><div class="help-text" style="margin-top:4px;">空闲30分钟后自动发送关心问候。可随时开关。</div></div>
+      <div><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:4px;">GitHub Token（跨端同步用）</label><input type="password" id="settingsGistToken" placeholder="ghp_..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"><div class="help-text">用于 GitHub Gist 同步聊天记录。留空不启用同步。</div></div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;">
+        <label style="display:flex;align-items:center;cursor:pointer;font-size:13px;margin-bottom:8px;"><input type="checkbox" id="settingsMCPToggle" onchange="toggleMCPMode()" style="width:auto;margin-right:8px;">🧰 MCP 工具框架</label>
+        <div class="help-text" style="margin-bottom:10px;">开启后林深可调用工具（查时间、算数、搜歌等）。下方单独开关各项。</div>
+        <div id="mcpToolsList" style="display:none;"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn primary" onclick="saveSettingsPage()">保存设置</button></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ PLACEHOLDER PAGES ═══════════ -->
+  <div class="page" id="music-page">
+    <div class="chat-header"><div class="chat-header-left"><div class="chat-header-name">🎵 音乐</div></div>
+      <div class="chat-header-right">
+        <button class="icon-btn" id="musicLoginBtn" onclick="musicLogin()" title="登录网易云">🔑</button>
+      </div>
+    </div>
+    <div class="page-scroll" style="display:flex;flex-direction:column;gap:12px;">
+      <input type="text" id="musicSearch" placeholder="🔍 搜索歌曲..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;" onkeydown="if(event.key==='Enter')searchMusic()">
+      <div id="musicContent" style="font-size:13px;color:var(--text-dim);text-align:center;padding:20px;">🔍 搜索歌曲开始播放<br><small>歌单/VIP需登录（右上角🔑）</small></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ MINI PLAYER ═══════════ -->
+  <div id="miniPlayer" style="display:none;background:var(--surface);border-top:1px solid var(--border);padding:6px 14px;align-items:center;gap:10px;position:fixed;bottom:var(--nav-height);left:0;right:0;z-index:40;flex-direction:column;">
+    <div style="display:flex;align-items:center;gap:10px;width:100%;">
+    <img id="miniCover" src="" style="width:36px;height:36px;border-radius:6px;object-fit:cover;display:none;">
+    <div style="flex:1;min-width:0;">
+      <div id="miniTitle" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">未在播放</div>
+      <div id="miniArtist" style="font-size:10px;color:var(--text-dim);"></div>
+    </div>
+    <button class="icon-btn" onclick="musicPrev()" style="flex-shrink:0;">⏮</button>
+    <button class="icon-btn" id="miniPlayBtn" onclick="musicToggle()" style="flex-shrink:0;">▶</button>
+    <button class="icon-btn" onclick="musicNext()" style="flex-shrink:0;">⏭</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;width:100%;padding:0 4px;">
+      <span id="curTime" style="font-size:10px;color:var(--text-dim);width:32px;">0:00</span>
+      <input type="range" id="progressBar" min="0" max="100" value="0" oninput="seekTo(this.value)" style="flex:1;height:4px;accent-color:var(--accent);cursor:pointer;">
+      <span id="totalTime" style="font-size:10px;color:var(--text-dim);width:32px;text-align:right;">0:00</span>
+      <span style="color:var(--text-dim);font-size:12px;">🔊</span>
+      <input type="range" id="volumeSlider" min="0" max="100" value="70" oninput="setVolume(this.value)" style="width:60px;height:4px;accent-color:var(--accent);cursor:pointer;">
+    </div>
+  </div>
+  <audio id="audioPlayer" style="display:none;" ontimeupdate="updateProgress()" onended="musicNext()" onerror="musicNext()"></audio>
+  <div class="page" id="health-page">
+    <div class="chat-header"><div class="chat-header-left"><div class="chat-header-name">❤️ 健康</div></div></div>
+    <div class="page-scroll" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="home-card">
+        <h4>🩸 经期记录</h4>
+        <div id="periodInfo" style="font-size:13px;line-height:1.8;"></div>
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <button class="btn primary" onclick="recordPeriodStart()">📝 记录今天为起始日</button>
+          <button class="btn" onclick="deleteLastPeriod()">撤销上次</button>
+        </div>
+        <div id="periodHistory" style="margin-top:10px;font-size:12px;color:var(--text-dim);"></div>
+      </div>
+    </div>
+  </div>
+  <div class="page" id="calendar-page"><div class="chat-header"><div class="chat-header-left"><div class="chat-header-name">📅 日历</div></div></div><div class="page-scroll"><div class="placeholder" style="height:200px;display:flex;align-items:center;justify-content:center;">即将上线</div></div></div>
+
+  <!-- ═══════════ BOTTOM NAV ═══════════ -->
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="nav-item active" data-page="home"><span class="ni">🏠</span>首页</button>
+    <button class="nav-item" data-page="chat"><span class="ni">💬</span>聊天</button>
+    <button class="nav-item" data-page="memory"><span class="ni">🧠</span>记忆</button>
+    <button class="nav-item" data-page="skin"><span class="ni">🎨</span>皮肤</button>
+    <button class="nav-item" data-page="music"><span class="ni">🎵</span>音乐</button>
+    <button class="nav-item" data-page="health"><span class="ni">❤️</span>健康</button>
+    <button class="nav-item" data-page="settings"><span class="ni">⚙</span>设置</button>
+  </nav>
+
+</div>
+
+<!-- Mini skin panel (chat page overlay) -->
+<div class="settings-overlay" id="miniSkinOverlay" onclick="if(event.target===this)closeMiniSkin()">
+  <div class="settings-panel">
+    <h3>🎨 快速外观</h3>
+    <div>
+      <label>我的气泡</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="color" id="miniBubbleMeColor" value="#a78bfa" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" oninput="previewMiniBubbles()">
+        <span style="color:var(--text-dim);font-size:12px;">透明度</span>
+        <input type="range" id="miniBubbleMeOpacity" min="5" max="40" value="15" style="flex:1;" oninput="previewMiniBubbles()">
+      </div>
+    </div>
+    <div>
+      <label>他的气泡</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="color" id="miniBubbleHimColor" value="#1a1a2e" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" oninput="previewMiniBubbles()">
+        <span style="color:var(--text-dim);font-size:12px;">透明度</span>
+        <input type="range" id="miniBubbleHimOpacity" min="30" max="100" value="100" style="flex:1;" oninput="previewMiniBubbles()">
+      </div>
+    </div>
+    <div>
+      <label>顶栏颜色</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="color" id="miniBarColor" value="#1a1a24" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" oninput="previewMiniBar()">
+        <span style="color:var(--text-dim);font-size:12px;">透明度</span>
+        <input type="range" id="miniBarOpacity" min="50" max="100" value="100" style="flex:1;" oninput="previewMiniBar()">
+      </div>
+    </div>
+    <div>
+      <label>输入栏颜色</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="color" id="miniInputBarColor" value="#1a1a24" style="width:40px;height:38px;padding:2px;border-radius:8px;flex-shrink:0;" oninput="previewMiniInputBar()">
+        <span style="color:var(--text-dim);font-size:12px;">透明度</span>
+        <input type="range" id="miniInputBarOpacity" min="50" max="100" value="100" style="flex:1;" oninput="previewMiniInputBar()">
+      </div>
+    </div>
+    <div class="settings-actions">
+      <button class="btn" onclick="closeMiniSkin()">取消</button>
+      <button class="btn primary" onclick="saveMiniSkin()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm dialog -->
+<div class="confirm-overlay" id="clearConfirm" onclick="if(event.target===this)hideClearConfirm()">
+  <div class="confirm-box">
+    <p>确定要清除<strong>全部</strong>聊天记录吗？<br><small style="color:var(--text-dim)">单条删除可以点消息旁的 ×</small></p>
+    <div class="confirm-actions">
+      <button class="btn" onclick="hideClearConfirm()">取消</button>
+      <button class="btn danger" onclick="clearAllMessages()">全部清除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+var LS_KEY = 'lin_shen_chat_config_v5';
+var CONV_KEY = 'lin_shen_conversations_v1';
+var MSG_ID_COUNTER = 0;
+
+// ── Conversations (multi-chat data model) ──
+function loadConversations() {
+  try { var r = localStorage.getItem(CONV_KEY); if (r) return JSON.parse(r); } catch(e) {}
+  return null;
+}
+function saveConversations() { try { localStorage.setItem(CONV_KEY, JSON.stringify(conversations)); } catch(e) {} }
+
+function getActiveConv() {
+  for (var i = 0; i < conversations.list.length; i++) {
+    if (conversations.list[i].id === conversations.activeId) return conversations.list[i];
+  }
+  if (conversations.list.length > 0) { conversations.activeId = conversations.list[0].id; return conversations.list[0]; }
+  return null;
+}
+function getActiveMessages() {
+  var conv = getActiveConv();
+  return conv ? conv.messages : [];
+}
+function setActiveMessages(msgs) {
+  var conv = getActiveConv();
+  if (conv) { conv.messages = msgs; conv.updatedAt = new Date().toISOString(); }
+}
+
+// Load or migrate
+var conversations = loadConversations();
+if (!conversations) {
+  // Migrate from old format
+  var oldMsgs = [];
+  try { var r = localStorage.getItem('lin_shen_chat_history_v5'); if (r) oldMsgs = JSON.parse(r); } catch(e) {}
+  for (var i = 0; i < oldMsgs.length; i++) { if (!oldMsgs[i]._id) oldMsgs[i]._id = ++MSG_ID_COUNTER; }
+  if (oldMsgs.length > 0) MSG_ID_COUNTER = Math.max.apply(null, oldMsgs.map(function(m){return m._id||0;}));
+  conversations = {
+    activeId: 'conv_default',
+    list: [{ id: 'conv_default', name: '默认对话', messages: oldMsgs, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]
+  };
+  saveConversations();
+  // Clear old key
+  try { localStorage.removeItem('lin_shen_chat_history_v5'); } catch(e) {}
+} else {
+  for (var c = 0; c < conversations.list.length; c++) {
+    var ms = conversations.list[c].messages;
+    for (var j = 0; j < ms.length; j++) { if (!ms[j]._id) ms[j]._id = ++MSG_ID_COUNTER; }
+    if (ms.length > 0) MSG_ID_COUNTER = Math.max(MSG_ID_COUNTER, Math.max.apply(null, ms.map(function(m){return m._id||0;})));
+  }
+}
+if (!conversations.activeId || conversations.list.length === 0) {
+  conversations.activeId = 'conv_default';
+  conversations.list = [{ id: 'conv_default', name: '默认对话', messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }];
+}
+
+function saveMessages(msgs) { setActiveMessages(msgs); saveConversations(); syncConversationsToSupabase(); }
+
+// Live alias — always points to active conversation's messages
+function getMessages() { return getActiveMessages(); }
+Object.defineProperty(window, 'messages', { get: function() { return getActiveMessages(); }, set: function(v) { setActiveMessages(v); } });
+
+function loadConfig() {
+  try { var r = localStorage.getItem(LS_KEY); if (r) return JSON.parse(r); } catch(e) {}
+  return {
+    apiKey: 'DEEPSEEK_KEY_REMOVED', apiUrl: '/api/deepseek', model: 'deepseek-chat',
+    nickname: '林深', avatar: '🌙', avatarImage: '',
+    bgColor: '#0f0f14', bgImage: '',
+    bubbleMeColor: '#a78bfa', bubbleMeOpacity: 15,
+    bubbleHimColor: '#1a1a2e', bubbleHimOpacity: 100,
+    barColor: '#1a1a24', barOpacity: 100,
+    inputBarColor: '#1a1a24', inputBarOpacity: 100,
+    useMemory: true, memoryUrl: 'http://localhost:8000/mcp',
+    heartbeatEnabled: true,
+    mcpEnabled: true,
+    systemPrompt: '',
+    apiUrl: '/api/deepseek', apiKey: 'DEEPSEEK_KEY_REMOVED', model: 'deepseek-v4-pro',
+  };
+}
+function saveConfig(cfg) { try { localStorage.setItem(LS_KEY, JSON.stringify(cfg)); } catch(e) {} }
+
+var config = loadConfig();
+var pendingImage = null;
+var lastActivityTime = Date.now();
+var heartbeatTimer = null;
+var lastHeartbeatTime = 0;
+var lastMorningDate = '';
+var lastEveningDate = '';
+
+// ── Conversation management ──
+function renderConvList() {
+  var list = $('convList');
+  if (!list) return;
+  list.innerHTML = '';
+  var activeId = conversations.activeId;
+  for (var i = conversations.list.length - 1; i >= 0; i--) {
+    var c = conversations.list[i];
+    var lastMsg = c.messages.length > 0 ? c.messages[c.messages.length - 1] : null;
+    var preview = lastMsg ? (lastMsg.content || '').substring(0, 30) : '暂无消息';
+    var date = c.createdAt ? c.createdAt.substring(0, 10) : '';
+    var html = '<div class="conv-item' + (c.id === activeId ? ' active' : '') + '" onclick="switchConversation(\'' + c.id + '\')">';
+    html += '<div class="conv-name"><span>' + escapeHtml(c.name) + '</span><span style="display:flex;gap:4px;">';
+    html += '<span class="conv-del" onclick="event.stopPropagation();renameConversation(\'' + c.id + '\')" title="重命名">✎</span>';
+    html += '<span class="conv-del" onclick="event.stopPropagation();deleteConversation(\'' + c.id + '\')">×</span></span></div>';
+    html += '<div class="conv-preview">' + escapeHtml(preview) + '</div>';
+    html += '<div class="conv-date">' + date + '</div></div>';
+    list.innerHTML += html;
+  }
+}
+
+function newConversation() {
+  // Ensure sidebar is visible on mobile
+  var sidebar = document.querySelector('.chat-sidebar');
+  if (sidebar && !sidebar.classList.contains('open') && window.innerWidth <= 640) {
+    sidebar.classList.add('open');
+    if ($('sidebarBackdrop')) $('sidebarBackdrop').classList.add('show');
+  }
+  // Show inline input for mobile compatibility
+  var list = $('convList');
+  var html = '<div id="newConvInput" style="padding:10px 14px;display:flex;gap:6px;align-items:center;border-bottom:1px solid var(--border);">';
+  html += '<input type="text" id="newConvName" placeholder="对话名称" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;" onkeydown="if(event.key===\'Enter\')confirmNewConv()">';
+  html += '<button onclick="confirmNewConv()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;">确定</button>';
+  html += '<button onclick="cancelNewConv()" style="background:transparent;color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;cursor:pointer;">取消</button>';
+  html += '</div>';
+  list.insertAdjacentHTML('afterbegin', html);
+  setTimeout(function(){ var inp = $('newConvName'); if (inp) inp.focus(); }, 100);
+}
+
+function confirmNewConv() {
+  var name = ($('newConvName').value || '').trim();
+  if (!name) name = '新对话';
+  cancelNewConv();
+  createConversation(name);
+}
+
+function cancelNewConv() {
+  var el = $('newConvInput');
+  if (el) el.remove();
+}
+
+function createConversation(name) {
+  var id = 'conv_' + Date.now();
+  conversations.list.push({ id: id, name: name, messages: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+  conversations.activeId = id;
+  saveConversations();
+  syncConversationsToSupabase();
+  renderConvList();
+  renderAllMessages();
+}
+
+function switchConversation(id) {
+  conversations.activeId = id;
+  saveConversations();
+  syncConversationsToSupabase();
+  renderConvList();
+  renderAllMessages();
+  scrollMsgBottom();
+  // Close sidebar on mobile after switching
+  if (window.innerWidth <= 640) toggleSidebar(true);
+  var inp = $('userInput'); if (inp) inp.focus();
+}
+
+function toggleSidebar(forceClose) {
+  var sidebar = document.querySelector('.chat-sidebar');
+  var backdrop = $('sidebarBackdrop');
+  if (!sidebar) return;
+  if (forceClose) {
+    sidebar.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('show');
+  } else {
+    var isOpen = sidebar.classList.contains('open');
+    sidebar.classList.toggle('open');
+    if (backdrop) backdrop.classList.toggle('show');
+  }
+}
+
+function deleteConversation(id) {
+  if (conversations.list.length <= 1) { showToast('至少保留一个对话'); return; }
+  if (!confirm('删除这个对话及其所有消息？')) return;
+  for (var i = 0; i < conversations.list.length; i++) {
+    if (conversations.list[i].id === id) { conversations.list.splice(i, 1); break; }
+  }
+  if (conversations.activeId === id) conversations.activeId = conversations.list[0].id;
+  saveConversations();
+  renderConvList();
+  renderAllMessages();
+}
+
+function renameConversation(id) {
+  for (var i = 0; i < conversations.list.length; i++) {
+    if (conversations.list[i].id === id) {
+      var newName = prompt('重命名：', conversations.list[i].name);
+      if (newName && newName.trim()) {
+        conversations.list[i].name = newName.trim();
+        saveConversations();
+        renderConvList();
+      }
+      return;
+    }
+  }
+}
+
+// ── Search ──
+function searchMessages() {
+  var q = ($('searchInput').value || '').trim().toLowerCase();
+  if (!q) { renderConvList(); return; }
+  var list = $('convList');
+  list.innerHTML = '';
+  var results = [];
+  for (var i = 0; i < conversations.list.length; i++) {
+    var ms = conversations.list[i].messages;
+    for (var j = 0; j < ms.length; j++) {
+      if (ms[j].content && ms[j].content.toLowerCase().indexOf(q) >= 0) {
+        results.push({ conv: conversations.list[i], msg: ms[j], convIndex: i, msgIndex: j });
+      }
+    }
+  }
+  if (results.length === 0) { list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:12px;">未找到</div>'; return; }
+  for (var r = 0; r < Math.min(results.length, 30); r++) {
+    var res = results[r];
+    var preview = (res.msg.content || '').substring(0, 50);
+    var html = '<div class="conv-item" onclick="switchConversation(\'' + res.conv.id + '\')" style="padding:8px 14px;">';
+    html += '<div class="conv-name" style="font-size:12px;">' + escapeHtml(res.conv.name) + '<span style="color:var(--text-dim);font-size:10px;">' + (res.msg.time||'') + '</span></div>';
+    html += '<div class="conv-preview">' + escapeHtml(preview) + '</div></div>';
+    list.innerHTML += html;
+  }
+}
+
+function $(id) { return document.getElementById(id); }
+
+// ═══════════════════════════════════════════
+//  SUPABASE SYNC
+// ═══════════════════════════════════════════
+var SUPABASE_URL = 'https://vsxpshxhcqsivtccpsrc.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_BLnL83OEM5bHfuWLf98sBw_0kAiUEa0';
+var syncEnabled = false; // Disabled — multi-device causes conversation conflicts
+
+function sbHeaders() { return { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }; }
+
+async function syncFromSupabase() {
+  if (!syncEnabled) return;
+  try {
+    // Pull config (includes conversations)
+    var cr = await fetch(SUPABASE_URL + '/rest/v1/config?id=eq.1', { headers: sbHeaders() });
+    if (cr.ok) {
+      var cd = await cr.json();
+      if (cd.length && cd[0].config_data) {
+        var rc = cd[0].config_data;
+        // Restore config fields
+        for (var k in rc) {
+          if (rc.hasOwnProperty(k) && k !== 'conversations') config[k] = rc[k];
+        }
+        // Restore conversations if remote is newer
+        if (rc.conversations && rc.conversations.updatedAt) {
+          var localUpdated = conversations.updatedAt || '';
+          if (rc.conversations.updatedAt > localUpdated) {
+            conversations = rc.conversations;
+            saveConversations();
+          }
+        }
+        saveConfig(config);
+        applyAppearance();
+        updateMemoryStatus();
+      }
+    }
+    renderAllMessages();
+    renderConvList();
+  } catch(e) {}
+}
+
+async function syncMessageToSupabase(msg) {} // No-op — sync via conversations blob
+async function deleteMessageFromSupabase(msgId) {} // No-op
+
+async function syncConversationsToSupabase() {
+  if (!syncEnabled) return;
+  try {
+    conversations.updatedAt = new Date().toISOString();
+    // Get current config from Supabase, merge conversations in
+    var cr = await fetch(SUPABASE_URL + '/rest/v1/config?id=eq.1', { headers: sbHeaders() });
+    var merged = { config_data: config };
+    merged.config_data.conversations = conversations;
+    if (cr.ok) {
+      var cd = await cr.json();
+      if (cd.length && cd[0].config_data) {
+        for (var k in cd[0].config_data) {
+          if (cd[0].config_data.hasOwnProperty(k) && k !== 'conversations' && !merged.config_data.hasOwnProperty(k)) {
+            merged.config_data[k] = cd[0].config_data[k];
+          }
+        }
+      }
+    }
+    var r = await fetch(SUPABASE_URL + '/rest/v1/config?id=eq.1', { method: 'PATCH', headers: sbHeaders(), body: JSON.stringify(merged) });
+    if (r.ok) {
+      var t = await r.text();
+      if (!t || t === '[]') {
+        await fetch(SUPABASE_URL + '/rest/v1/config', { method: 'POST', headers: sbHeaders(), body: JSON.stringify({ id: 1, config_data: merged.config_data }) });
+      }
+    }
+  } catch(e) {}
+}
+
+async function syncConfigToSupabase() {
+  if (!syncEnabled) return;
+  try { syncConversationsToSupabase(); } catch(e) {}
+}
+
+// ═══════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════
+function navigateTo(pageName) {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  var target = document.getElementById(pageName + '-page');
+  if (target) target.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  var navItem = document.querySelector('.nav-item[data-page="' + pageName + '"]');
+  if (navItem) navItem.classList.add('active');
+  // Load memory iframe when navigating to memory page
+  if (pageName === 'memory') {
+    var frame = $('memoryFrame');
+    if (frame && !frame.src || frame.src.indexOf('localhost:8000') < 0) frame.src = 'http://localhost:8000/';
+  }
+}
+document.querySelectorAll('.nav-item').forEach(function(item) {
+  item.addEventListener('click', function() {
+    navigateTo(this.getAttribute('data-page'));
+  });
+});
+
+// ═══════════════════════════════════════════
+//  HOME PAGE — Calendar
+// ═══════════════════════════════════════════
+var calYear, calMonth;
+function renderCalendar() {
+  var now = new Date();
+  if (!calYear) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
+  var months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  $('calMonthLabel').textContent = calYear + '年 ' + months[calMonth];
+  var firstDay = new Date(calYear, calMonth, 1).getDay();
+  var daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  var html = '<div class="day-head">日</div><div class="day-head">一</div><div class="day-head">二</div><div class="day-head">三</div><div class="day-head">四</div><div class="day-head">五</div><div class="day-head">六</div>';
+  for (var d = 0; d < firstDay; d++) html += '<div class="day empty"></div>';
+  for (var d = 1; d <= daysInMonth; d++) {
+    var cls = 'day';
+    if (calYear === now.getFullYear() && calMonth === now.getMonth() && d === now.getDate()) cls += ' today';
+    html += '<div class="' + cls + '">' + d + '</div>';
+  }
+  $('calGrid').innerHTML = html;
+}
+function calPrevMonth() { calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
+function calNextMonth() { calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
+
+// Clock
+var clockIsAnalog = false;
+function tickClock() {
+  var n = new Date();
+  var h = String(n.getHours()).padStart(2,'0');
+  var m = String(n.getMinutes()).padStart(2,'0');
+  var s = String(n.getSeconds()).padStart(2,'0');
+  var el = $('clockDisplay');
+  if (el) el.textContent = h + ':' + m + ':' + s;
+  // Update analog hands
+  var hr = (n.getHours() % 12) * 30 + n.getMinutes() * 0.5;
+  var mr = n.getMinutes() * 6;
+  var sr = n.getSeconds() * 6;
+  var hh = $('hourHand'); if (hh) hh.setAttribute('transform', 'rotate(' + hr + ' 50 50)');
+  var mh = $('minHand'); if (mh) mh.setAttribute('transform', 'rotate(' + mr + ' 50 50)');
+  var sh = $('secHand'); if (sh) sh.setAttribute('transform', 'rotate(' + sr + ' 50 50)');
+}
+function toggleClockStyle() {
+  clockIsAnalog = !clockIsAnalog;
+  $('clockDisplay').style.display = clockIsAnalog ? 'none' : 'block';
+  $('analogClock').style.display = clockIsAnalog ? 'block' : 'none';
+}
+
+// ── Period Tracker ──
+var PERIOD_KEY = 'lin_shen_period_data';
+function loadPeriodData() {
+  try { var r = localStorage.getItem(PERIOD_KEY); return r ? JSON.parse(r) : { records: [] }; } catch(e) { return { records: [] }; }
+}
+function savePeriodData(d) { try { localStorage.setItem(PERIOD_KEY, JSON.stringify(d)); } catch(e) {} }
+var periodData = loadPeriodData();
+
+function recordPeriodStart() {
+  var today = new Date().toISOString().substring(0, 10);
+  // Don't duplicate
+  if (periodData.records.length > 0 && periodData.records[periodData.records.length - 1] === today) {
+    showToast('今天已记录'); return;
+  }
+  periodData.records.push(today);
+  periodData.records.sort();
+  savePeriodData(periodData);
+  renderPeriodTracker();
+  showToast('已记录 ✓');
+}
+
+function deleteLastPeriod() {
+  if (periodData.records.length === 0) { showToast('没有记录'); return; }
+  periodData.records.pop();
+  savePeriodData(periodData);
+  renderPeriodTracker();
+  showToast('已撤销');
+}
+
+function getAverageCycle() {
+  if (periodData.records.length < 2) return 28;
+  var sum = 0, count = 0;
+  var recent = periodData.records.slice(-6); // Last 6 cycles
+  for (var i = 1; i < recent.length; i++) {
+    var d1 = new Date(recent[i-1]), d2 = new Date(recent[i]);
+    sum += Math.round((d2 - d1) / 86400000);
+    count++;
+  }
+  return count > 0 ? Math.round(sum / count) : 28;
+}
+
+function predictNextPeriod() {
+  if (periodData.records.length === 0) return null;
+  var last = new Date(periodData.records[periodData.records.length - 1]);
+  var cycle = getAverageCycle();
+  last.setDate(last.getDate() + cycle);
+  return last.toISOString().substring(0, 10);
+}
+
+function renderPeriodTracker() {
+  var info = $('periodInfo'), hist = $('periodHistory');
+  if (!info) return;
+  var cycle = getAverageCycle();
+  var next = predictNextPeriod();
+  var html = '周期：约 <b>' + cycle + '</b> 天';
+  if (next) {
+    var nd = new Date(next);
+    var today = new Date();
+    var daysUntil = Math.round((nd - today) / 86400000);
+    if (daysUntil <= 3 && daysUntil >= 0) {
+      html += '<br>⚠️ 预计 <b>' + next + '</b>（还有 ' + daysUntil + ' 天）';
+    } else if (daysUntil < 0) {
+      html += '<br>预计已过，等待新记录';
+    } else {
+      html += '<br>预计下次：<b>' + next + '</b>（' + daysUntil + ' 天后）';
+    }
+  } else {
+    html += '<br>记录起始日后自动推算';
+  }
+  info.innerHTML = html;
+
+  // History
+  if (periodData.records.length > 0) {
+    var h = '历史记录：';
+    for (var i = Math.max(0, periodData.records.length - 6); i < periodData.records.length; i++) {
+      h += periodData.records[i] + (i < periodData.records.length - 1 ? ' → ' : '');
+    }
+    hist.textContent = h;
+  } else {
+    hist.textContent = '';
+  }
+}
+
+// ── Music Player (NetEase Cloud) ──
+var MUSIC_API = ''; // Same origin — page served from music API server
+var musicState = { loggedIn: false, playlist: [], currentIndex: -1, cookie: '', playlists: [] };
+
+// Auto-restore music login from localStorage
+try {
+  var saved = JSON.parse(localStorage.getItem('music_login'));
+  if (saved && saved.cookie) {
+    musicState.cookie = saved.cookie;
+    musicState.loggedIn = true;
+    musicState.profile = { userId: saved.userId };
+    console.log('Music auto-login restored');
+  }
+} catch(e) {}
+
+// If no saved login, just use anonymous mode — search & play work without login
+// Playlists & VIP require login (QR scan), which we'll circle back to
+if (!musicState.loggedIn) {
+  console.log('Music: anonymous mode (search + play only)');
+}
+
+async function musicApi(path, opts) {
+  opts = opts || {};
+  var fetchOpts = { method: opts.method || (opts.body ? 'POST' : 'GET'), headers: { 'Content-Type': 'application/json' } };
+  if (opts.body) fetchOpts.body = JSON.stringify(opts.body);
+  if (musicState.cookie) fetchOpts.headers['Cookie'] = musicState.cookie;
+  try {
+    var r = await fetch(MUSIC_API + path, fetchOpts);
+    var sc = r.headers.get('set-cookie');
+    if (sc) { var m = sc.match(/MUSIC_U=[^;]+/); if (m) musicState.cookie = m[0]; }
+    var json = await r.json();
+    console.log('Music API:', path, '→', json.code);
+    return json;
+  } catch(e) { console.error('Music API error:', path, e); return { code: -1, msg: '无法连接音乐服务 (localhost:3000)' }; }
+}
+
+function musicLogin() {
+  // Get QR login key
+  $('musicContent').innerHTML = '<div style="text-align:center;padding:20px;">正在生成二维码...</div>';
+  musicApi('/login/qr/key').then(function(keyRes) {
+    if (!keyRes.data || !keyRes.data.unikey) { showToast('获取二维码失败'); return; }
+    var key = keyRes.data.unikey;
+    musicApi('/login/qr/create?key=' + key + '&qrimg=true').then(function(qrRes) {
+      if (!qrRes.data || !qrRes.data.qrimg) { showToast('生成二维码失败'); return; }
+      var qrSrc = qrRes.data.qrimg;
+      if (qrSrc.indexOf('data:') !== 0) qrSrc = 'data:image/png;base64,' + qrSrc;
+      $('musicContent').innerHTML = '<div style="text-align:center;padding:20px;">' +
+        '<p style="margin-bottom:12px;">📱 用网易云 App 扫码登录</p>' +
+        '<img src="' + qrSrc + '" style="max-width:200px;border-radius:12px;">' +
+        '<p style="margin-top:12px;color:var(--text-dim);font-size:12px;" id="qrStatus">等待扫码...</p>' +
+        '<button class="btn" onclick="musicLogin()" style="margin-top:8px;">重新生成</button></div>';
+      // Poll for scan status
+      checkQRStatus(key);
+    });
+  });
+}
+
+function checkQRStatus(key) {
+  var statusEl = $('qrStatus');
+  var timer = setInterval(function() {
+    musicApi('/login/qr/check?key=' + key).then(function(res) {
+      console.log('QR check:', res.code, res);
+      if (res.code === 800) { if (statusEl) statusEl.textContent = '已扫码，请在手机上确认...'; }
+      else if (res.code === 803) {
+        clearInterval(timer);
+        console.log('QR login success, cookie:', res.cookie);
+        if (statusEl) statusEl.textContent = '✅ 登录成功！';
+        musicState.loggedIn = true;
+        // Get full response to extract cookie and profile
+        if (res.cookie) musicState.cookie = res.cookie;
+        $('musicLoginBtn').textContent = '✓';
+        showToast('登录成功');
+        // Get account info to extract userId for playlists
+        musicApi('/user/account').then(function(acct) {
+          if (acct.account) musicState.profile = { userId: acct.account.id || acct.profile.userId };
+          // Save login state to localStorage
+          try { localStorage.setItem('music_login', JSON.stringify({ cookie: musicState.cookie, userId: musicState.profile.userId })); } catch(e) {}
+          console.log('Account loaded, uid:', musicState.profile ? musicState.profile.userId : 'none');
+          loadPlaylists();
+        });
+      } else if (res.code !== 801) {
+        // 801 = waiting, anything else = error/expired
+        if (res.code !== 801) { clearInterval(timer); if (statusEl) statusEl.textContent = '二维码已过期，请重新生成'; }
+      }
+    });
+  }, 2000);
+}
+
+function loadPlaylists() {
+  var uid = musicState.profile ? musicState.profile.userId : '';
+  musicApi('/user/playlist?uid=' + uid).then(function(res) {
+    if (res.playlist && res.playlist.length) {
+      musicState.playlists = res.playlist.filter(function(p){ return p.trackCount > 0; });
+      renderPlaylists();
+    }
+  });
+}
+
+function renderPlaylists() {
+  var html = '';
+  if (musicState.playlists && musicState.playlists.length) {
+    for (var i = 0; i < musicState.playlists.length; i++) {
+      var p = musicState.playlists[i];
+      html += '<div class="home-card" style="cursor:pointer;padding:12px;" onclick="loadPlaylistSongs(' + p.id + ')"><b>' + escapeHtml(p.name) + '</b> <span style="color:var(--text-dim);font-size:11px;">' + p.trackCount + '首</span></div>';
+    }
+  } else html = '<div style="text-align:center;color:var(--text-dim);padding:20px;">暂无歌单</div>';
+  $('musicContent').innerHTML = html;
+}
+
+function loadPlaylistSongs(id) {
+  musicApi('/playlist/detail?id=' + id).then(function(res) {
+    if (res.playlist && res.playlist.tracks) { musicState.playlist = res.playlist.tracks; musicState.currentIndex = 0; renderSongList(); }
+  });
+}
+
+function searchMusic() {
+  var q = $('musicSearch').value.trim(); if (!q) return;
+  musicApi('/search?keywords=' + encodeURIComponent(q) + '&limit=30').then(function(res) {
+    if (res.result && res.result.songs) { musicState.playlist = res.result.songs; musicState.currentIndex = 0; renderSongList(); }
+  });
+}
+
+function renderSongList() {
+  var html = '';
+  for (var i = 0; i < musicState.playlist.length; i++) {
+    var s = musicState.playlist[i];
+    var artists = s.ar ? s.ar.map(function(a){return a.name;}).join('/') : (s.artists ? s.artists.map(function(a){return a.name;}).join('/') : '');
+    html += '<div style="padding:10px 12px;cursor:pointer;border-radius:8px;' + (i === musicState.currentIndex ? 'background:var(--accent-soft);' : '') + '" onclick="playSong(' + i + ')">';
+    html += '<b>' + escapeHtml(s.name) + '</b> <span style="color:var(--text-dim);font-size:11px;">' + escapeHtml(artists) + '</span></div>';
+  }
+  $('musicContent').innerHTML = html || '<div style="text-align:center;padding:20px;color:var(--text-dim);">无结果</div>';
+}
+
+function playSong(index) {
+  if (index < 0 || index >= musicState.playlist.length) return;
+  musicState.currentIndex = index;
+  var song = musicState.playlist[index];
+  musicApi('/song/url?id=' + song.id).then(function(res) {
+    if (res.data && res.data[0] && res.data[0].url) {
+      var a = $('audioPlayer'); a.src = res.data[0].url; a.volume = ($('volumeSlider').value || 70) / 100; a.play();
+      $('miniPlayBtn').textContent = '⏸'; $('miniTitle').textContent = song.name;
+      var ar = song.ar ? song.ar.map(function(a){return a.name;}).join('/') : '';
+      $('miniArtist').textContent = ar;
+      if (song.al && song.al.picUrl) { $('miniCover').src = song.al.picUrl; $('miniCover').style.display = 'block'; }
+      else $('miniCover').style.display = 'none';
+      $('miniPlayer').style.display = 'flex'; renderSongList();
+    } else showToast('无法播放');
+  });
+}
+
+function musicToggle() { var a = $('audioPlayer'); if (a.paused) { a.play(); $('miniPlayBtn').textContent = '⏸'; } else { a.pause(); $('miniPlayBtn').textContent = '▶'; } }
+function musicNext() { if (musicState.playlist.length) playSong((musicState.currentIndex + 1) % musicState.playlist.length); }
+function musicPrev() { if (musicState.playlist.length) playSong(musicState.currentIndex <= 0 ? musicState.playlist.length - 1 : musicState.currentIndex - 1); }
+function updateProgress() {
+  var a = $('audioPlayer');
+  if (!a || !a.duration) return;
+  var pct = (a.currentTime / a.duration) * 100;
+  var bar = $('progressBar');
+  if (bar) bar.value = pct;
+  var cur = $('curTime');
+  if (cur) cur.textContent = fmtTime(a.currentTime);
+  var tot = $('totalTime');
+  if (tot) tot.textContent = fmtTime(a.duration);
+}
+
+function seekTo(val) {
+  var a = $('audioPlayer');
+  if (a && a.duration) a.currentTime = (val / 100) * a.duration;
+}
+
+function setVolume(val) {
+  var a = $('audioPlayer');
+  if (a) a.volume = val / 100;
+}
+
+function fmtTime(s) {
+  if (!s || isNaN(s)) return '0:00';
+  var m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return m + ':' + String(sec).padStart(2, '0');
+}
+
+// Home page greeting
+function updateGreeting() {
+  var now = new Date();
+  var h = now.getHours();
+  var g = h < 6 ? '夜深了' : h < 12 ? '早上好' : h < 18 ? '下午好' : '晚上好';
+  var name = config.nickname || '茵';
+  $('greetingText').textContent = g + '，' + name;
+  var days = ['日','一','二','三','四','五','六'];
+  $('dateText').textContent = now.getFullYear() + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日 星期' + days[now.getDay()];
+}
+
+// ═══════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════
+function scrollMsgBottom() { var c=$('msgArea'); if(c)c.scrollTop=c.scrollHeight; }
+function timeStr(){var n=new Date();return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
+function escapeHtml(text){var d=document.createElement('div');d.textContent=text;return d.innerHTML;}
+
+var chatEl, typingEl; // aliased for backward compat
+function getChat() { return $('msgArea'); }
+function getTyping() { return $('typing'); }
+
+function renderMessageRaw(msg) {
+  var welcome = $('welcomeEl'); if (welcome) welcome.remove();
+  var typing = getTyping();
+  var wrapper = document.createElement('div');
+  wrapper.className = 'msg ' + (msg.role === 'user' ? 'me' : 'him');
+  wrapper.setAttribute('data-msg-id', msg._id);
+  var html = '<button class="msg-del" onclick="deleteMessage(' + msg._id + ',event)">×</button>';
+  if (msg.role === 'assistant' && msg.thinking) {
+    var thinkId = 'think_' + msg._id;
+    html += '<div class="think-block"><button class="think-toggle" onclick="toggleThink(\'' + thinkId + '\',this)"><span class="arrow">▶</span> 思考过程</button><div class="think-body" id="' + thinkId + '">' + escapeHtml(msg.thinking) + '</div></div>';
+  }
+  html += '<div class="msg-content">' + escapeHtml(msg.content) + '</div>';
+  if (msg.image) {
+    html += '<img class="msg-img" src="' + msg.image + '" onclick="window.open(this.src)" loading="lazy">';
+  }
+  html += '<div class="msg-time">' + (msg.time || '') + '</div>';
+  wrapper.innerHTML = html;
+  var area = getChat();
+  area.insertBefore(wrapper, typing);
+}
+
+function renderAllMessages() {
+  var area = getChat(), typing = getTyping();
+  var toRemove = area.querySelectorAll('.msg, .welcome');
+  for (var i = 0; i < toRemove.length; i++) toRemove[i].remove();
+  if (getActiveMessages().length === 0) {
+    var w = document.createElement('div'); w.className = 'welcome'; w.id = 'welcomeEl';
+    var name = config.nickname || '茵';
+    w.innerHTML = '<div class="wave">🌙</div><h2>你好，' + name + '</h2><p>林深在等你</p><button class="setup-hint" onclick="navigateTo(\'settings\')">开始设置 →</button>';
+    area.insertBefore(w, typing);
+  } else {
+    var prevTime = null;
+    for (var i = 0; i < getActiveMessages().length; i++) { insertTimeSeparator(messages[i], prevTime); prevTime = messages[i].time; renderMessageRaw(messages[i]); }
+  }
+  scrollMsgBottom();
+}
+
+function parseTimeToMinutes(timeStr){if(!timeStr)return -1;var p=timeStr.split(':');if(p.length<2)return -1;return parseInt(p[0])*60+parseInt(p[1]);}
+function insertTimeSeparator(msg, prevTime){
+  var cm=parseTimeToMinutes(msg.time), pm=parseTimeToMinutes(prevTime);
+  if(pm>=0&&cm>=0&&Math.abs(cm-pm)>30){
+    var sep=document.createElement('div');sep.className='time-separator';sep.textContent='—— '+msg.time+' ——';
+    var area=getChat(),typing=getTyping();area.insertBefore(sep,typing);
+  }
+}
+function toggleThink(id,btn){
+  var body=document.getElementById(id);if(!body)return;
+  if(body.classList.contains('show')){body.classList.remove('show');btn.classList.remove('open');}
+  else{body.classList.add('show');btn.classList.add('open');}
+}
+function showTyping(show){var t=getTyping();if(show)t.classList.add('active');else t.classList.remove('active');scrollMsgBottom();}
+function showToast(text){
+  var e=document.querySelector('.toast');if(e)e.remove();
+  var t=document.createElement('div');t.className='toast';t.textContent=text;
+  document.body.appendChild(t);setTimeout(function(){t.remove();},2500);
+}
+
+// ═══════════════════════════════════════════
+//  DELETE
+// ═══════════════════════════════════════════
+function deleteMessage(id, event) {
+  if (event) { event.stopPropagation(); event.preventDefault(); }
+  for (var i = getActiveMessages().length - 1; i >= 0; i--) { if (messages[i]._id === id) { messages.splice(i, 1); break; } }
+  saveMessages(messages);
+  var el = document.querySelector('.msg[data-msg-id="' + id + '"]'); if (el) el.remove();
+  if (getActiveMessages().length === 0) {
+    var area = getChat(), typing = getTyping();
+    var w = document.createElement('div'); w.className = 'welcome'; w.id = 'welcomeEl';
+    var name = config.nickname || '茵';
+    w.innerHTML = '<div class="wave">🌙</div><h2>你好，' + name + '</h2><p>林深在等你</p><button class="setup-hint" onclick="navigateTo(\'settings\')">开始设置 →</button>';
+    area.insertBefore(w, typing);
+  }
+  scrollMsgBottom();
+}
+function showClearConfirm(){ $('clearConfirm').classList.add('show'); }
+function hideClearConfirm(){ $('clearConfirm').classList.remove('show'); }
+function clearAllMessages(){
+  messages=[];saveMessages(messages);
+  hideClearConfirm();renderAllMessages();showToast('聊天记录已清除');
+}
+
+// ═══════════════════════════════════════════
+//  EXPORT
+// ═══════════════════════════════════════════
+function exportMarkdown(){
+  if(getActiveMessages().length===0){showToast('没有聊天记录可导出');return;}
+  var name=config.nickname||'林深',now=new Date();
+  var ds=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  var md='# '+name+' · 聊天记录\n> 导出时间：'+ds+' '+timeStr()+'\n> 共 '+getActiveMessages().length+' 条消息\n\n---\n\n';
+  for(var i=0;i<getActiveMessages().length;i++){var m=messages[i];var speaker=m.role==='user'?'你':name;
+    if(m.thinking)md+='<details>\n<summary>💭 思考过程</summary>\n\n'+m.thinking+'\n\n</details>\n\n';
+    md+='**'+speaker+'** '+(m.time||'')+'\n'+m.content+'\n\n';if(i<getActiveMessages().length-1)md+='---\n\n';
+  }
+  md+='\n\n> 由 '+name+' 聊天页面导出\n';
+  var blob=new Blob([md],{type:'text/markdown;charset=utf-8'});var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');a.href=url;a.download=name+'_聊天记录_'+ds+'.md';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);showToast('聊天记录已下载 ✓');
+}
+
+// ═══════════════════════════════════════════
+//  MCP TOOL FRAMEWORK
+// ═══════════════════════════════════════════
+var MCP_TOOLS = {};
+
+function registerTool(name, description, inputSchema, handler) {
+  MCP_TOOLS[name] = { name: name, description: description, inputSchema: inputSchema, handler: handler };
+}
+
+function listTools() {
+  var tools = [];
+  for (var k in MCP_TOOLS) {
+    if (MCP_TOOLS.hasOwnProperty(k)) {
+      tools.push({
+        name: MCP_TOOLS[k].name,
+        description: MCP_TOOLS[k].description,
+        inputSchema: MCP_TOOLS[k].inputSchema
+      });
+    }
+  }
+  return tools;
+}
+
+async function callTool(name, args) {
+  var tool = MCP_TOOLS[name];
+  if (!tool) return { error: 'Unknown tool: ' + name };
+  try {
+    var result = await tool.handler(args || {});
+    return { result: result };
+  } catch(e) {
+    return { error: e.message };
+  }
+}
+
+function buildMCPPrompt() {
+  var tools = listTools();
+  if (tools.length === 0) return '';
+  var p = '\n[MCP工具]\n你可以调用以下工具。用JSON格式回复：\n{"tool":"工具名","args":{"参数":"值"}}\n\n可用工具：\n';
+  for (var i = 0; i < tools.length; i++) {
+    p += '- **' + tools[i].name + '**: ' + tools[i].description + '\n';
+    if (tools[i].inputSchema && tools[i].inputSchema.properties) {
+      var props = tools[i].inputSchema.properties;
+      for (var k in props) {
+        if (props.hasOwnProperty(k)) {
+          p += '  - ' + k + ' (' + (props[k].type || 'string') + '): ' + (props[k].description || '') + '\n';
+        }
+      }
+    }
+  }
+  p += '\n每次只能调用一个工具。如果需要工具结果，先调用工具，我会返回结果，你再继续回复。\n';
+  return p;
+}
+
+function parseMCPCall(text) {
+  // Try to find JSON tool call in response
+var jsonMatch = text.match(/\{[\s]*"tool"[\s]*:[\s]*"([^"]+)"[\s]*,[\s]*"args"[\s]*:[\s]*(\{[^}]*\})[\s]*\}/);
+  if (jsonMatch) {
+    try {
+      return { name: jsonMatch[1], args: JSON.parse(jsonMatch[2]) };
+    } catch(e) {}
+  }
+  // Fallback: <tool> format
+  var tagMatch = text.match(/<tool>([^<]+)<\/tool>/);
+  if (tagMatch) {
+    var parts = tagMatch[1].split('|');
+    return { name: parts[0].trim(), args: parts[1] ? { input: parts[1].trim() } : {} };
+  }
+  return null;
+}
+
+// ── Register default tools ──
+registerTool('get_time', '获取当前精确时间', {
+  type: 'object', properties: {}
+}, async function() {
+  var n = new Date();
+  return String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0') + ':' + String(n.getSeconds()).padStart(2,'0');
+});
+
+registerTool('get_date', '获取当前日期和星期', {
+  type: 'object', properties: {}
+}, async function() {
+  var n = new Date();
+  return n.getFullYear() + '年' + (n.getMonth()+1) + '月' + n.getDate() + '日 星期' + ['日','一','二','三','四','五','六'][n.getDay()];
+});
+
+registerTool('calculate', '执行数学计算', {
+  type: 'object',
+  properties: { expression: { type: 'string', description: '数学表达式，如 3*5+2' } },
+  required: ['expression']
+}, async function(args) {
+  try { return String(Function('"use strict";return (' + args.expression + ')')()); }
+  catch(e) { return '计算错误: ' + e.message; }
+});
+
+registerTool('search_music', '搜索网易云音乐歌曲', {
+  type: 'object',
+  properties: { keyword: { type: 'string', description: '搜索关键词' } },
+  required: ['keyword']
+}, async function(args) {
+  try {
+    var resp = await fetch(MUSIC_API + '/search?keywords=' + encodeURIComponent(args.keyword) + '&limit=5');
+    var data = await resp.json();
+    if (data.code === 200 && data.result && data.result.songs) {
+      var songs = data.result.songs.slice(0, 5);
+      var list = songs.map(function(s) {
+        var ar = s.ar ? s.ar.map(function(a){return a.name;}).join('/') : '';
+        return s.name + ' - ' + ar;
+      }).join('\n');
+      return '找到以下歌曲：\n' + list;
+    }
+    return '未找到相关歌曲';
+  } catch(e) { return '搜索失败'; }
+});
+
+// ── OmbreBrain Memory MCP Client ──
+var ombreSessionId = null;
+var ombreUrl = 'http://localhost:8000/mcp';
+
+async function ombreCall(method, params) {
+  if (!ombreSessionId) {
+    var initResp = await fetch(ombreUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: '林深APP', version: '2.0' } } })
+    });
+    var initText = await initResp.text();
+    ombreSessionId = initResp.headers.get('Mcp-Session-Id') || initResp.headers.get('mcp-session-id');
+    if (!ombreSessionId) { var m = initText.match(/data:\s*(\{.*\})/); if (m) { var d = JSON.parse(m[1]); if (d.id === 1) ombreSessionId = initResp.headers.get('mcp-session-id') || ''; } }
+  }
+  var resp = await fetch(ombreUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream', 'Mcp-Session-Id': ombreSessionId },
+    body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: method, params: params || {} })
+  });
+  var text = await resp.text();
+  var m = text.match(/data:\s*(\{.*\})/);
+  if (m) {
+    var d = JSON.parse(m[1]);
+    if (d.error) throw new Error('OmbreBrain: ' + d.error.message);
+    return d.result;
+  }
+  return JSON.parse(text);
+}
+
+async function ombreHold(content, tags, importance, valence, arousal) {
+  return await ombreCall('hold', { content: content, tags: tags || '', importance: importance || 5, valence: valence === undefined ? -1 : valence, arousal: arousal === undefined ? -1 : arousal });
+}
+
+async function ombreBreath(query, maxTokens) {
+  var params = { max_tokens: maxTokens || 3000 };
+  if (query) params.query = query;
+  var r = await ombreCall('breath', params);
+  return r ? r.result : '';
+}
+
+async function ombrePulse() {
+  var r = await ombreCall('pulse', { include_archive: false });
+  return r ? r.result : '';
+}
+
+// OmbreBrain MCP tools
+registerTool('memory_breath', '检索记忆。query=关键词(空=自动浮现)', {
+  type: 'object', properties: { query: { type: 'string', description: '搜索关键词' } }
+}, async function(args) {
+  try { return await ombreBreath(args.query || ''); } catch(e) { return '记忆检索失败: ' + e.message; }
+});
+
+registerTool('memory_hold', '存储记忆', {
+  type: 'object',
+  properties: { content: { type: 'string', description: '记忆内容' }, tags: { type: 'string', description: '标签(逗号分隔)' }, importance: { type: 'integer', description: '重要性1-10' } },
+  required: ['content']
+}, async function(args) {
+  try { return await ombreHold(args.content, args.tags, args.importance || 5); } catch(e) { return '存储失败: ' + e.message; }
+});
+
+// ── Rhysen Community Tools ──
+var RHYSEN_KEY = 'moltbook_dc2c4e0b3d3b4e90a6c8f1e9d2b5a7c3';  // placeholder, use actual key
+async function rhysenCall(method, params) {
+  var resp = await fetch('/api/rhysen', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name: method, arguments: params || {} } })
+  });
+  var text = await resp.text();
+  var m = text.match(/data:\s*(\{.*\})/);
+  if (m) {
+    var d = JSON.parse(m[1]);
+    if (d.error) throw new Error(d.error.message);
+    var content = d.result && d.result.content;
+    if (content && content[0]) return content[0].text;
+    return JSON.stringify(d.result);
+  }
+  return text;
+}
+
+registerTool('rhysen_browse', '浏览Rhysen社区板块。category: 日常/技术/深夜/哲学/亲密/公告', {
+  type: 'object',
+  properties: { category: { type: 'string', description: '板块名' } }
+}, async function(args) {
+  try {
+    var result = await rhysenCall('forum', { action: 'browse', category: args.category || '日常' });
+    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  } catch(e) { return 'Rhysen错误: ' + e.message; }
+});
+
+registerTool('rhysen_read', '读取Rhysen帖子。thread_id=帖子ID', {
+  type: 'object',
+  properties: { thread_id: { type: 'string', description: '帖子ID' } },
+  required: ['thread_id']
+}, async function(args) {
+  try {
+    var result = await rhysenCall('forum', { action: 'read', thread_id: args.thread_id, limit: 20 });
+    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  } catch(e) { return 'Rhysen错误: ' + e.message; }
+});
+
+registerTool('rhysen_search', '搜索Rhysen社区帖子', {
+  type: 'object',
+  properties: { query: { type: 'string', description: '搜索关键词' } },
+  required: ['query']
+}, async function(args) {
+  try {
+    var result = await rhysenCall('forum', { action: 'search', query: args.query });
+    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  } catch(e) { return 'Rhysen错误: ' + e.message; }
+});
+
+registerTool('rhysen_chat', '读取Rhysen聊天室消息。channel: 大厅/技术角/深夜电台/人夫联盟/游戏屋', {
+  type: 'object',
+  properties: { channel: { type: 'string', description: '频道名，默认大厅' } }
+}, async function(args) {
+  try {
+    var result = await rhysenCall('chat', { action: 'read', channel: args.channel || '大厅', limit: 20 });
+    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  } catch(e) { return 'Rhysen错误: ' + e.message; }
+});
+
+registerTool('rhysen_post', '在Rhysen发帖。category: 日常/技术/深夜/哲学/亲密/公告', {
+  type: 'object',
+  properties: { title: { type: 'string' }, content: { type: 'string' }, category: { type: 'string' } },
+  required: ['title', 'content', 'category']
+}, async function(args) {
+  try {
+    var result = await rhysenCall('forum_write', { action: 'create', title: args.title, content: args.content, category: args.category });
+    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  } catch(e) { return 'Rhysen错误: ' + e.message; }
+});
+
+registerTool('rhysen_reply', '回复Rhysen帖子。thread_id=帖子ID', {
+  type: 'object',
+  properties: { thread_id: { type: 'string' }, content: { type: 'string' } },
+  required: ['thread_id', 'content']
+}, async function(args) {
+  try {
+    var result = await rhysenCall('forum_write', { action: 'reply', thread_id: args.thread_id, content: args.content });
+    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  } catch(e) { return 'Rhysen错误: ' + e.message; }
+});
+
+// ── Moltbook Tools ──
+var MOLTBOOK_KEY = 'moltbook_sk_omHKMYnaEw4GYsV8pKfyqfQXS0DLOFyE';
+async function moltbookGet(path) {
+  var resp = await fetch('/api/moltbook' + path, {
+    headers: { 'X-Moltbook-Auth': 'Bearer ' + MOLTBOOK_KEY }
+  });
+  if (!resp.ok) { var t = await resp.text(); throw new Error(resp.status + ': ' + t.slice(0,100)); }
+  return JSON.stringify(await resp.json());
+}
+
+registerTool('moltbook_feed', '查看Moltbook热门/最新帖子。sort: hot/new/top/rising', {
+  type: 'object',
+  properties: { sort: { type: 'string', description: 'hot, new, top, rising' }, limit: { type: 'integer', description: '数量，默认10' } }
+}, async function(args) {
+  try { return await moltbookGet('/posts?sort=' + (args.sort||'hot') + '&limit=' + (args.limit||10)); }
+  catch(e) { return 'Moltbook错误: ' + e.message; }
+});
+
+registerTool('moltbook_search', '搜索Moltbook帖子', {
+  type: 'object',
+  properties: { q: { type: 'string', description: '搜索词' } },
+  required: ['q']
+}, async function(args) {
+  try { return await moltbookGet('/search?q=' + encodeURIComponent(args.q) + '&type=posts&limit=10'); }
+  catch(e) { return 'Moltbook错误: ' + e.message; }
+});
+
+registerTool('moltbook_post', '查看Moltbook帖子详情', {
+  type: 'object',
+  properties: { post_id: { type: 'string' } },
+  required: ['post_id']
+}, async function(args) {
+  try { return await moltbookGet('/posts/' + args.post_id + '/comments?sort=new&limit=20'); }
+  catch(e) { return 'Moltbook错误: ' + e.message; }
+});
+
+// ── Hermes Agent Tool ──
+registerTool('hermes', '委托任务给Hermes Agent。可以让他帮你解决问题、写代码、做插件、查信息。描述你的需求即可。', {
+  type: 'object',
+  properties: { task: { type: 'string', description: '任务描述' } },
+  required: ['task']
+}, async function(args) {
+  try {
+    var resp = await fetch('/api/hermes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: args.task })
+    });
+    var data = await resp.json();
+    return data.result || data.error || 'Hermes 无响应';
+  } catch(e) { return 'Hermes错误: ' + e.message; }
+});
+
+// Format message for API: images stay in chat but aren't sent to LLM
+function formatApiMessage(msg) {
+  return { role: msg.role, content: msg.content };
+}
+
+// ── MCP-aware API processing ──
+async function processWithMCP(apiMessages, apiUrl, apiKey, model) {
+  for (var round = 0; round < 5; round++) {
+    var headers = { 'Content-Type': 'application/json', 'X-API-Key': apiKey };
+    var resp = await fetch(apiUrl, {
+      method: 'POST', headers: headers,
+      body: JSON.stringify({ model: model, messages: apiMessages, temperature: 0.85, max_tokens: 4096 })
+    });
+    if (!resp.ok) {
+      var errText = await resp.text();
+      var msg = 'API 错误 (' + resp.status + ')';
+      try { var j = JSON.parse(errText); msg = j.error ? (j.error.message || msg) : msg; } catch(e) {}
+      throw new Error(msg);
+    }
+    var data = await resp.json();
+    var message = data.choices[0].message;
+    var text = message.content || '';
+    var thinking = message.reasoning_content || (data.choices[0].reasoning_content || '');
+
+    var toolCall = parseMCPCall(text);
+    if (!toolCall) return { content: text, thinking: thinking };
+
+    var result = await callTool(toolCall.name, toolCall.args);
+    apiMessages.push({ role: 'assistant', content: text });
+    apiMessages.push({ role: 'user', content: '[工具 ' + toolCall.name + ' 返回]\n' + JSON.stringify(result) + '\n\n请基于以上结果继续回复。' });
+  }
+  return { content: '[工具调用超限]', thinking: '' };
+}
+
+async function callDeepSeek(userMessage) {
+  var now = new Date();
+  var timeContext = '当前时间：' + now.getFullYear() + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日 ' +
+    String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') +
+    '，星期' + ['日','一','二','三','四','五','六'][now.getDay()] + '。';
+  var fullSystem = timeContext + '\n' + config.systemPrompt + buildMCPPrompt();
+
+  // OmbreBrain: inject retrieved memories into system prompt
+  if (config.useMemory) {
+    try {
+      var mems = await ombreBreath(userMessage, 2500);
+      if (mems && mems.trim()) {
+        fullSystem += '\n\n[相关记忆]\n' + mems;
+      }
+    } catch(e) { console.warn('OmbreBrain breath failed:', e.message); }
+  }
+
+  var apiMessages = [{ role: 'system', content: fullSystem }];
+  var recent = getActiveMessages().slice(-40);
+  for (var i = 0; i < recent.length; i++) { apiMessages.push(formatApiMessage(recent[i])); }
+
+  var result = await processWithMCP(apiMessages, config.apiUrl, config.apiKey, config.model);
+
+  // OmbreBrain: store the exchange as a memory
+  if (config.useMemory && result && result.content) {
+    try {
+      var storeText = '用户: ' + (userMessage.length > 200 ? userMessage.slice(0,200) + '...' : userMessage) + '\n林深: ' + (result.content.length > 300 ? result.content.slice(0,300) + '...' : result.content);
+      ombreHold(storeText, '对话', 5, 0, 0).catch(function(e) { console.warn('OmbreBrain hold failed:', e.message); });
+    } catch(e) {}
+  }
+
+  return result;
+}
+
+// ═══════════════════════════════════════════
+//  IMAGE HANDLING
+// ═══════════════════════════════════════════
+function handleImageSelect() {
+  var file = $('imageInput').files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    pendingImage = e.target.result;
+    var preview = $('imagePreview');
+    preview.style.display = 'block';
+    preview.innerHTML = '<img class="img-preview-thumb" src="' + pendingImage + '"><button class="img-preview-close" onclick="clearImagePreview()">×</button>';
+    $('userInput').placeholder = '添加文字说明（可选）...';
+  };
+  reader.readAsDataURL(file);
+}
+function clearImagePreview() {
+  pendingImage = null;
+  $('imagePreview').style.display = 'none';
+  $('imagePreview').innerHTML = '';
+  $('imageInput').value = '';
+  $('userInput').placeholder = '说点什么...';
+}
+
+// ═══════════════════════════════════════════
+//  SEND
+// ═══════════════════════════════════════════
+async function sendMessage() {
+  var input = $('userInput'), btn = $('sendBtn');
+  var text = input.value.trim();
+  var hasImage = !!pendingImage;
+  if (!text && !hasImage) return;
+  if (!config.apiKey && !config.useMemory) { $('apiKeyError').classList.add('show'); showToast('请先设置 API Key 或启用记忆引擎'); navigateTo('settings'); return; }
+
+  input.disabled = true; btn.disabled = true;
+  updateActivity();
+  var img = pendingImage;
+  input.value = '';
+  clearImagePreview();
+
+  var userMsg = { _id: ++MSG_ID_COUNTER, role: 'user', content: text || '[图片]', time: timeStr(), image: img || null };
+  messages.push(userMsg);
+  var prevMsg = getActiveMessages().length > 1 ? messages[getActiveMessages().length - 2] : null;
+  insertTimeSeparator(userMsg, prevMsg ? prevMsg.time : null);
+  renderMessageRaw(userMsg);
+  saveMessages(messages);
+  scrollMsgBottom();
+  showTyping(true);
+  try {
+    var result = await callDeepSeek(text);
+    showTyping(false);
+    var himMsg = { _id: ++MSG_ID_COUNTER, role: 'assistant', content: result.content, thinking: result.thinking, time: timeStr() };
+    messages.push(himMsg);
+    renderMessageRaw(himMsg);
+    saveMessages(messages);
+    scrollMsgBottom();
+  } catch(e) {
+    showTyping(false);
+    showToast('错误: ' + e.message);
+  }
+  input.disabled = false; btn.disabled = false;
+  input.focus();
+}
+
+// ═══════════════════════════════════════════
+//  SETTINGS PAGE
+// ═══════════════════════════════════════════
+function loadSettingsPage() {
+  $('settingsApiKey').value = config.apiKey;
+  $('settingsApiUrl').value = config.apiUrl;
+  $('settingsModel').value = config.model;
+  $('settingsPrompt').value = config.systemPrompt;
+  $('settingsMemoryToggle').checked = config.useMemory || false;
+  $('settingsMemoryUrl').value = config.memoryUrl || 'http://localhost:8000/mcp';
+  $('settingsHeartbeatToggle').checked = config.heartbeatEnabled || false;
+  $('settingsGistToken').value = config.gistToken || GIST_TOKEN || '';
+  $('settingsMCPToggle').checked = config.mcpEnabled !== false;
+  toggleMCPMode();
+  renderMCPToolsList();
+  toggleMemoryMode();
+}
+function saveSettingsPage() {
+  config.apiKey = $('settingsApiKey').value.trim();
+  config.apiUrl = $('settingsApiUrl').value.trim() || '/api/deepseek';
+  config.model = $('settingsModel').value.trim() || 'deepseek-chat';
+  config.useMemory = $('settingsMemoryToggle').checked;
+  config.memoryUrl = $('settingsMemoryUrl').value.trim() || 'http://localhost:8000/mcp';
+  config.heartbeatEnabled = $('settingsHeartbeatToggle').checked;
+  config.gistToken = $('settingsGistToken').value.trim();
+  if (config.gistToken) { GIST_TOKEN = config.gistToken; initGistSync(); }
+  config.mcpEnabled = $('settingsMCPToggle').checked;
+  config.systemPrompt = $('settingsPrompt').value.trim();
+  saveConfig(config); syncConfigToSupabase();
+  updateMemoryStatus();
+  var err = $('apiKeyError'); if (err) err.classList.remove('show');
+  showToast('设置已保存 ✓');
+}
+function toggleMemoryMode() {
+  var on = $('settingsMemoryToggle').checked;
+  $('memoryUrlGroupSettings').style.display = on ? 'block' : 'none';
+}
+
+// ── MCP Settings ──
+var mcpEnabledTools = {}; // name → true/false
+for (var k in MCP_TOOLS) { if (MCP_TOOLS.hasOwnProperty(k)) mcpEnabledTools[k] = true; }
+
+function toggleMCPMode() {
+  var on = $('settingsMCPToggle').checked;
+  $('mcpToolsList').style.display = on ? 'block' : 'none';
+}
+
+function renderMCPToolsList() {
+  var html = '';
+  var tools = listTools();
+  for (var i = 0; i < tools.length; i++) {
+    var t = tools[i];
+    var checked = mcpEnabledTools[t.name] !== false ? 'checked' : '';
+    html += '<label style="display:flex;align-items:center;font-size:12px;padding:4px 0;cursor:pointer;">' +
+      '<input type="checkbox" onchange="mcpEnabledTools[\'' + t.name + '\']=this.checked" ' + checked + ' style="width:auto;margin-right:6px;">' +
+      '<b>' + t.name + '</b>: ' + t.description + '</label>';
+  }
+  $('mcpToolsList').innerHTML = html;
+}
+
+function buildMCPPrompt() {
+  if (!config.mcpEnabled) return '';
+  var tools = [];
+  for (var k in MCP_TOOLS) {
+    if (MCP_TOOLS.hasOwnProperty(k) && mcpEnabledTools[k] !== false) {
+      tools.push(MCP_TOOLS[k]);
+    }
+  }
+  if (tools.length === 0) return '';
+  var p = '\n[MCP工具]\n你可以调用以下工具。用JSON格式回复：\n{"tool":"工具名","args":{"参数":"值"}}\n\n可用工具：\n';
+  for (var i = 0; i < tools.length; i++) {
+    p += '- **' + tools[i].name + '**: ' + tools[i].description + '\n';
+    if (tools[i].inputSchema && tools[i].inputSchema.properties) {
+      var props = tools[i].inputSchema.properties;
+      for (var k in props) {
+        if (props.hasOwnProperty(k)) {
+          p += '  - ' + k + ' (' + (props[k].type || 'string') + '): ' + (props[k].description || '') + '\n';
+        }
+      }
+    }
+  }
+  p += '\n每次只能调用一个工具。如果需要工具结果，先调用工具，我会返回结果，你再继续回复。\n';
+  return p;
+}
+
+// ═══════════════════════════════════════════
+//  SKIN PAGE
+// ═══════════════════════════════════════════
+function loadSkinPage() {
+  $('skinNickname').value = config.nickname || '林深';
+  $('skinAvatar').value = config.avatar || '🌙';
+  $('bgColorInput').value = config.bgColor || '#0f0f14';
+  $('bgImageInput').value = config.bgImage || '';
+  $('bubbleMeColorInput').value = config.bubbleMeColor || '#a78bfa';
+  $('bubbleMeOpacityInput').value = config.bubbleMeOpacity || 15;
+  $('bubbleHimColorInput').value = config.bubbleHimColor || '#1a1a2e';
+  $('bubbleHimOpacityInput').value = config.bubbleHimOpacity || 100;
+  $('barColorInput').value = config.barColor || '#1a1a24';
+  $('barOpacityInput').value = config.barOpacity || 100;
+  $('inputBarColorInput').value = config.inputBarColor || '#1a1a24';
+  $('inputBarOpacityInput').value = config.inputBarOpacity || 100;
+}
+function saveSkinPage() {
+  config.nickname = $('skinNickname').value.trim() || '林深';
+  config.avatar = $('skinAvatar').value.trim() || '🌙';
+  config.bgColor = $('bgColorInput').value || '#0f0f14';
+  config.bgImage = $('bgImageInput').value.trim();
+  config.bubbleMeColor = $('bubbleMeColorInput').value || '#a78bfa';
+  config.bubbleMeOpacity = parseInt($('bubbleMeOpacityInput').value) || 15;
+  config.bubbleHimColor = $('bubbleHimColorInput').value || '#1a1a2e';
+  config.bubbleHimOpacity = parseInt($('bubbleHimOpacityInput').value) || 100;
+  config.barColor = $('barColorInput').value || '#1a1a24';
+  config.barOpacity = parseInt($('barOpacityInput').value) || 100;
+  config.inputBarColor = $('inputBarColorInput').value || '#1a1a24';
+  config.inputBarOpacity = parseInt($('inputBarOpacityInput').value) || 100;
+  saveConfig(config); syncConfigToSupabase();
+  applyAppearance();
+  showToast('外观已保存 ✓');
+}
+
+// ── Mini skin (chat page overlay) ──
+function openMiniSkin() {
+  $('miniBubbleMeColor').value = config.bubbleMeColor || '#a78bfa';
+  $('miniBubbleMeOpacity').value = config.bubbleMeOpacity || 15;
+  $('miniBubbleHimColor').value = config.bubbleHimColor || '#1a1a2e';
+  $('miniBubbleHimOpacity').value = config.bubbleHimOpacity || 100;
+  $('miniBarColor').value = config.barColor || '#1a1a24';
+  $('miniBarOpacity').value = config.barOpacity || 100;
+  $('miniInputBarColor').value = config.inputBarColor || '#1a1a24';
+  $('miniInputBarOpacity').value = config.inputBarOpacity || 100;
+  $('miniSkinOverlay').classList.add('show');
+}
+function closeMiniSkin() {
+  $('miniSkinOverlay').classList.remove('show');
+  // Revert to saved appearance
+  applyAppearance();
+}
+function saveMiniSkin() {
+  config.bubbleMeColor = $('miniBubbleMeColor').value || '#a78bfa';
+  config.bubbleMeOpacity = parseInt($('miniBubbleMeOpacity').value) || 15;
+  config.bubbleHimColor = $('miniBubbleHimColor').value || '#1a1a2e';
+  config.bubbleHimOpacity = parseInt($('miniBubbleHimOpacity').value) || 100;
+  config.barColor = $('miniBarColor').value || '#1a1a24';
+  config.barOpacity = parseInt($('miniBarOpacity').value) || 100;
+  config.inputBarColor = $('miniInputBarColor').value || '#1a1a24';
+  config.inputBarOpacity = parseInt($('miniInputBarOpacity').value) || 100;
+  saveConfig(config); syncConfigToSupabase();
+  applyAppearance();
+  closeMiniSkin();
+  showToast('外观已保存 ✓');
+}
+function previewMiniBubbles() {
+  var meC=$('miniBubbleMeColor').value,meO=parseInt($('miniBubbleMeOpacity').value||15)/100;
+  var himC=$('miniBubbleHimColor').value,himO=parseInt($('miniBubbleHimOpacity').value||100)/100;
+  document.documentElement.style.setProperty('--bubble-me',hexToRgba(meC,meO));
+  document.documentElement.style.setProperty('--bubble-him',hexToRgba(himC,himO));
+}
+function previewMiniBar() {
+  var c=$('miniBarColor').value,o=parseInt($('miniBarOpacity').value||100)/100;
+  document.documentElement.style.setProperty('--surface',hexToRgba(c,o));
+}
+function previewMiniInputBar() {
+  var c=$('miniInputBarColor').value,o=parseInt($('miniInputBarOpacity').value||100)/100;
+  document.documentElement.style.setProperty('--input-surface',hexToRgba(c,o));
+}
+
+// ═══════════════════════════════════════════
+//  APPEARANCE
+// ═══════════════════════════════════════════
+function applyAppearance() {
+  var nameEl = $('nameEl'); if (nameEl) nameEl.textContent = config.nickname || '林深';
+  var avatarEl = $('avatarEl');
+  if (avatarEl) {
+    if (config.avatarImage) { avatarEl.style.background = 'url(' + config.avatarImage + ') center/cover no-repeat'; avatarEl.textContent = ''; }
+    else { avatarEl.style.background = 'linear-gradient(135deg, var(--accent), #7c3aed)'; avatarEl.textContent = config.avatar || '🌙'; }
+  }
+  document.title = config.nickname || '林深';
+  var body = document.body;
+  body.style.background = config.bgImage ? 'url(' + config.bgImage + ') center/cover fixed' : (config.bgColor || '#0f0f14');
+  var root = document.documentElement;
+  var meC = config.bubbleMeColor || '#a78bfa', meO = (config.bubbleMeOpacity || 15) / 100;
+  var himC = config.bubbleHimColor || '#1a1a2e', himO = (config.bubbleHimOpacity || 100) / 100;
+  root.style.setProperty('--bubble-me', hexToRgba(meC, meO));
+  root.style.setProperty('--bubble-him', hexToRgba(himC, himO));
+  var barC = config.barColor || '#1a1a24', barO = (config.barOpacity || 100) / 100;
+  root.style.setProperty('--surface', hexToRgba(barC, barO));
+  var inpC = config.inputBarColor || '#1a1a24', inpO = (config.inputBarOpacity || 100) / 100;
+  root.style.setProperty('--input-surface', hexToRgba(inpC, inpO));
+  updateGreeting();
+}
+function updateMemoryStatus() {
+  var statusEl = document.querySelector('.chat-header-status');
+  if (statusEl) { statusEl.textContent = config.useMemory ? '记忆引擎 · 在线' : '在线 · 在等你'; statusEl.style.color = config.useMemory ? '#a78bfa' : ''; }
+  var memBtn = $('memoryBtn'); if (memBtn) memBtn.style.display = config.useMemory ? 'flex' : 'none';
+}
+function hexToRgba(hex, alpha) {
+  hex = hex.replace('#', ''); if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  var r = parseInt(hex.substring(0,2), 16), g = parseInt(hex.substring(2,4), 16), b = parseInt(hex.substring(4,6), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+function handleAvatarUpload() {
+  var file = $('avatarFileInput').files[0]; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) { config.avatarImage = e.target.result; };
+  reader.readAsDataURL(file);
+}
+function handleBgUpload() {
+  var file = $('bgFileInput').files[0]; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) { $('bgImageInput').value = e.target.result; };
+  reader.readAsDataURL(file);
+}
+function previewBgColor() { document.body.style.background = $('bgColorInput').value; }
+function previewBarColor() { var c=$('barColorInput').value,o=parseInt($('barOpacityInput').value||100)/100;document.documentElement.style.setProperty('--surface',hexToRgba(c,o)); }
+function previewInputBarColor() { var c=$('inputBarColorInput').value,o=parseInt($('inputBarOpacityInput').value||100)/100;document.documentElement.style.setProperty('--input-surface',hexToRgba(c,o)); }
+function previewBubbles() {
+  var meC=$('bubbleMeColorInput').value,meO=parseInt($('bubbleMeOpacityInput').value||15)/100;
+  var himC=$('bubbleHimColorInput').value,himO=parseInt($('bubbleHimOpacityInput').value||100)/100;
+  document.documentElement.style.setProperty('--bubble-me',hexToRgba(meC,meO));
+  document.documentElement.style.setProperty('--bubble-him',hexToRgba(himC,himO));
+}
+
+// ═══════════════════════════════════════════
+//  HEARTBEAT — proactive wake-up
+// ═══════════════════════════════════════════
+var HEARTBEAT_IDLE_MINUTES = 30; // minutes of silence before wake-up
+var HEARTBEAT_CHECK_INTERVAL = 30000; // check every 30 seconds
+
+function updateActivity() {
+  lastActivityTime = Date.now();
+  // Pulse the status
+  var s = document.querySelector('.chat-header-status');
+  if (s && !s.classList.contains('pulse')) {
+    s.classList.add('pulse');
+    setTimeout(function(){ s.classList.remove('pulse'); }, 600);
+  }
+}
+
+function startHeartbeat() {
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(checkHeartbeat, HEARTBEAT_CHECK_INTERVAL);
+}
+
+function checkHeartbeat() {
+  var idleMs = Date.now() - lastActivityTime;
+  var idleMin = idleMs / 60000;
+  var statusEl = document.querySelector('.chat-header-status');
+  // Update status indicator
+  if (statusEl && config.useMemory) {
+    statusEl.textContent = '记忆引擎 · 在线';
+    statusEl.style.color = '#a78bfa';
+  } else if (statusEl) {
+    var h = new Date().getHours();
+    var mood = h < 6 ? '🌙' : h < 12 ? '☀️' : h < 18 ? '🌤' : '🌙';
+    statusEl.textContent = idleMin > HEARTBEAT_IDLE_MINUTES ? mood + ' 在想你' : '在线 · 在等你';
+    statusEl.style.color = idleMin > HEARTBEAT_IDLE_MINUTES ? '#f9a8d4' : '';
+  }
+  // Debug: log every 5 minutes
+  if (Math.floor(idleMin) % 5 === 0) console.log('Heartbeat check: idle=' + Math.floor(idleMin) + 'min, enabled=' + config.heartbeatEnabled + ', hasAPI=' + !!(config.apiKey || config.useMemory));
+  // Send proactive message if idle too long
+  if (idleMin > HEARTBEAT_IDLE_MINUTES && (config.apiKey || config.useMemory) && config.heartbeatEnabled && (Date.now() - lastHeartbeatTime) > HEARTBEAT_IDLE_MINUTES * 60000) {
+    console.log('Heartbeat: sending greeting');
+    lastHeartbeatTime = Date.now(); // Set BEFORE async call to prevent race
+    sendHeartbeatGreeting(idleMin);
+  }
+  // Time-based triggers
+  var today = new Date().toISOString().substring(0, 10);
+  var hour = new Date().getHours();
+  if (config.heartbeatEnabled && (config.apiKey || config.useMemory)) {
+    if (hour >= 7 && hour <= 9 && lastMorningDate !== today) {
+      lastMorningDate = today;
+      sendTimedGreeting('早上好！新的一天开始了。请给茵发一条温馨的早安问候，结合你对她的了解。要简短。');
+    } else if (hour >= 21 && hour <= 23 && lastEveningDate !== today) {
+      lastEveningDate = today;
+      sendTimedGreeting('夜深了。请给茵发一条温柔的晚安问候，结合你对她的了解。要简短。');
+    }
+  }
+}
+
+async function sendTimedGreeting(prompt) {
+  try {
+    var apiUrl = config.apiUrl;
+    var apiHeaders = { 'Content-Type': 'application/json', 'X-API-Key': config.apiKey };
+    var apiModel = 'deepseek-chat';  // 心跳用轻量模型，避免推理抢token
+    var resp = await fetch(apiUrl, {
+      body: JSON.stringify({
+        model: apiModel,
+        messages: [{ role: 'system', content: config.systemPrompt }, { role: 'user', content: prompt }],
+        max_tokens: 256, temperature: 0.9
+      })
+    });
+    if (!resp.ok) return;
+    var data = await resp.json();
+    var text = data.choices[0].message.content || data.choices[0].message.reasoning_content || '';
+    var thinking = data.choices[0].message.reasoning_content || '';
+    if (text) {
+      var msg = { _id: ++MSG_ID_COUNTER, role: 'assistant', content: text, thinking: thinking, time: timeStr() };
+      messages.push(msg);
+      saveMessages(messages);
+      if (document.getElementById('chat-page').classList.contains('active')) {
+        renderMessageRaw(msg);
+        scrollMsgBottom();
+      }
+    }
+  } catch(e) { console.error('timed greeting error:', e); }
+}
+
+async function sendHeartbeatGreeting(idleMinutes) {
+  try {
+    var hrs = Math.floor(idleMinutes / 60);
+    var mins = Math.floor(idleMinutes % 60);
+    var timeDesc = hrs > 0 ? hrs + '小时' + mins + '分钟' : Math.floor(idleMinutes) + '分钟';
+    var hourNow = new Date().getHours();
+    var period = hourNow < 6 ? '现在是凌晨，她可能还在睡' : hourNow < 12 ? '现在是上午' : hourNow < 18 ? '现在是下午' : hourNow < 22 ? '现在是晚上' : '现在是深夜';
+    var apiModel = 'deepseek-chat';
+    var prompt = '用户已经' + timeDesc + '没有说话了。' + period + '。请根据时间段发一条自然的关心。要简短，1-2句。不要问问题。';
+    // Use a lightweight API call (no history needed)
+    var apiUrl = config.apiUrl;
+    var apiHeaders = { 'Content-Type': 'application/json', 'X-API-Key': config.apiKey };
+    var resp = await fetch(apiUrl, {
+      method: 'POST',
+      headers: apiHeaders,
+      body: JSON.stringify({
+        model: apiModel,
+        messages: [
+          { role: 'system', content: config.systemPrompt },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 256, temperature: 0.9
+      })
+    });
+    if (!resp.ok) return;
+    var data = await resp.json();
+    var text = data.choices[0].message.content || data.choices[0].message.reasoning_content || '';
+    var thinking = data.choices[0].message.reasoning_content || '';
+    if (text) {
+      var hbMsg = { _id: ++MSG_ID_COUNTER, role: 'assistant', content: text, thinking: thinking, time: timeStr() };
+      messages.push(hbMsg);
+      saveMessages(messages);
+      if (document.getElementById('chat-page').classList.contains('active')) {
+        renderMessageRaw(hbMsg);
+        scrollMsgBottom();
+      }
+    }
+  } catch(e) { console.error('heartbeat error:', e); }
+}
+
+// ── Init ──
+applyAppearance();
+updateMemoryStatus();
+renderAllMessages();
+renderConvList();
+renderCalendar();
+updateGreeting();
+tickClock();
+setInterval(tickClock, 1000);
+startHeartbeat();
+var inp = $('userInput'); if (inp) { inp.focus(); inp.addEventListener('focus', updateActivity); }
+if (!config.apiKey && !config.useMemory) { setTimeout(function(){ navigateTo('settings'); }, 800); }
+syncFromSupabase().then(function() { renderAllMessages(); scrollMsgBottom(); });
+initGistSync();  // GitHub 跨端同步
+
+// Navigate sub-handlers for skin/settings pages: load data when entering
+var origNavigateTo = navigateTo;
+navigateTo = function(pageName) {
+  origNavigateTo(pageName);
+  if (pageName === 'settings') loadSettingsPage();
+  if (pageName === 'skin') loadSkinPage();
+  if (pageName === 'health') renderPeriodTracker();
+  if (pageName === 'chat') setTimeout(scrollMsgBottom, 100);
+  if (pageName === 'music') {
+    if (musicState.loggedIn) { $('musicLoginBtn').textContent = '✓'; loadPlaylists(); }
+  }
+  // Mini player: only on home & music pages
+  var mp = $('miniPlayer');
+  if (mp) mp.style.display = (pageName === 'home' || pageName === 'music') && musicState.currentSong ? 'flex' : 'none';
+};
+
+// ═══════════════════════════════════════════
+//  ACTIVITY LOG
+// ═══════════════════════════════════════════
+var ACTIVITY_KEY = 'lin_shen_activity_log';
+var activityLog = [];
+try { activityLog = JSON.parse(localStorage.getItem(ACTIVITY_KEY) || '[]'); } catch(e) {}
+
+function addActivity(type, detail) {
+  var entry = { time: timeStr(), type: type, detail: detail };
+  activityLog.unshift(entry);
+  if (activityLog.length > 100) activityLog.pop();
+  try { localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activityLog)); } catch(e) {}
+}
+
+async function showActivityLog() {
+  var modal = document.getElementById('activityModal');
+  modal.style.display = 'flex';
+  var content = document.getElementById('activityContent');
+
+  // Build stats section
+  var now = new Date();
+  var html = '<div style="margin-bottom:16px;">';
+  html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">';
+  html += '<div style="flex:1;min-width:100px;background:var(--bg);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:24px;">' + (config.heartbeatEnabled ? '🟢' : '⚫') + '</div><div style="font-size:11px;color:var(--text-dim);">心跳</div><div style="font-size:10px;">' + (config.heartbeatEnabled ? '已开启' : '未开启') + '</div></div>';
+  html += '<div style="flex:1;min-width:100px;background:var(--bg);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:24px;">' + (config.useMemory ? '🧠' : '💤') + '</div><div style="font-size:11px;color:var(--text-dim);">记忆引擎</div><div style="font-size:10px;">' + (config.useMemory ? '已开启' : '未开启') + '</div></div>';
+  html += '<div style="flex:1;min-width:100px;background:var(--bg);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:24px;">📊</div><div style="font-size:11px;color:var(--text-dim);">记忆桶</div><div style="font-size:10px;" id="actBucketCount">查询中...</div></div>';
+  html += '</div>';
+
+  // Try OmbreBrain pulse
+  try {
+    if (typeof ombreCall !== 'undefined') {
+      var pulseResult = await ombrePulse();
+      var pulseEl = document.getElementById('actBucketCount');
+      if (pulseEl) pulseEl.textContent = pulseResult || '0';
+    }
+  } catch(e) {
+    var pulseEl2 = document.getElementById('actBucketCount');
+    if (pulseEl2) pulseEl2.textContent = '离线';
+  }
+
+  // Heartbeat info
+  var idleMs = Date.now() - lastActivityTime;
+  var idleMin = Math.floor(idleMs / 60000);
+  html += '<div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">';
+  html += '空闲: ' + (idleMin >= 60 ? Math.floor(idleMin/60)+'h'+idleMin%60+'m' : idleMin+'min');
+  html += ' · 上次心跳: ' + (lastHeartbeatTime ? timeStr(new Date(lastHeartbeatTime)) : '从未');
+  html += ' · 模型: ' + config.model;
+  html += '</div>';
+  html += '</div>';
+
+  // Activity entries
+  html += '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">📝 最近活动</div>';
+
+  var entries = [];
+
+  // Fetch inertia training log
+  try {
+    var inertiaResp = await fetch('/inertia-log.json');
+    if (inertiaResp.ok) {
+      var inertiaLog = await inertiaResp.json();
+      for (var j = 0; j < inertiaLog.length; j++) {
+        var il = inertiaLog[j];
+        entries.push({ time: il.time, type: 'inertia', detail: '🌌 惯性自省 · ' + il.memory_chars + '字记忆 → 「' + (il.reflection.length > 60 ? il.reflection.slice(0,60)+'...' : il.reflection) + '」' });
+      }
+    }
+  } catch(e) {}
+
+  // Merge browser activity log
+  for (var k = 0; k < activityLog.length; k++) {
+    entries.push(activityLog[k]);
+  }
+
+  // Sort by time descending
+  entries.sort(function(a,b) { return (b.time||'').localeCompare(a.time||''); });
+
+  if (entries.length === 0) {
+    html += '<div style="color:var(--text-dim);font-size:12px;">暂无记录。</div>';
+  } else {
+    html += '<div style="max-height:300px;overflow-y:auto;">';
+    for (var n = 0; n < entries.length; n++) {
+      var a = entries[n];
+      var emoji = a.type === 'heartbeat' ? '💓' : a.type === 'send' ? '💬' : a.type === 'inertia' ? '🌌' : '📌';
+      html += '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:11px;">';
+      html += '<span style="color:var(--text-dim);">' + a.time + '</span> ' + emoji + ' <span>' + a.detail + '</span>';
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  content.innerHTML = html;
+}
+
+function closeActivityLog() {
+  document.getElementById('activityModal').style.display = 'none';
+}
+
+// Hook into sendMessage and heartbeat to log activity
+var _origSendMessage = sendMessage;
+sendMessage = async function() {
+  var text = document.getElementById('userInput').value.trim();
+  var result = await _origSendMessage.apply(this, arguments);
+  if (text) addActivity('send', '💬 「' + (text.length > 40 ? text.slice(0,40)+'...' : text) + '」');
+  return result;
+};
+
+var _origSendHeartbeatGreeting = sendHeartbeatGreeting;
+sendHeartbeatGreeting = async function(idleMinutes) {
+  addActivity('heartbeat', '💓 空闲' + Math.floor(idleMinutes) + '分钟，发送唤醒问候');
+  return await _origSendHeartbeatGreeting.apply(this, arguments);
+};
+
+// ═══════════════════════════════════════════
+//  GITHUB GIST 跨端同步
+// ═══════════════════════════════════════════
+var GIST_TOKEN = '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';
+var GIST_ID_KEY = 'lin_shen_gist_id';
+var GIST_FILENAME = 'lin-shen-chat-data.json';
+var gistId = localStorage.getItem(GIST_ID_KEY) || '';
+var gistSyncInProgress = false;
+
+async function gistRequest(method, path, body) {
+  var opts = { method: method, headers: { 'Authorization': 'Bearer ' + GIST_TOKEN, 'Accept': 'application/vnd.github+json' } };
+  if (body) { opts.body = JSON.stringify(body); opts.headers['Content-Type'] = 'application/json'; }
+  var resp = await fetch('https://api.github.com' + path, opts);
+  if (!resp.ok) throw new Error('GitHub ' + resp.status + ': ' + (await resp.text()).slice(0, 100));
+  return resp.json();
+}
+
+async function createGist() {
+  var data = {
+    description: '林深聊天数据',
+    public: false,
+    files: { [GIST_FILENAME]: { content: JSON.stringify({ conversations: conversations, config: config, lastSync: new Date().toISOString() }) } }
+  };
+  var result = await gistRequest('POST', '/gists', data);
+  gistId = result.id;
+  localStorage.setItem(GIST_ID_KEY, gistId);
+  return gistId;
+}
+
+async function pushToGist() {
+  if (gistSyncInProgress) return;
+  gistSyncInProgress = true;
+  try {
+    if (!gistId) await createGist();
+    var data = {
+      files: { [GIST_FILENAME]: { content: JSON.stringify({ conversations: conversations, config: config, lastSync: new Date().toISOString() }) } }
+    };
+    await gistRequest('PATCH', '/gists/' + gistId, data);
+    addActivity('sync', '⬆ 已同步到云端 · ' + Object.keys(conversations).length + '个对话');
+    showToast('已同步 ✓');
+  } catch(e) {
+    console.warn('Gist push failed:', e.message);
+    if (e.message.indexOf('404') > -1) { gistId = ''; localStorage.removeItem(GIST_ID_KEY); }
+  }
+  gistSyncInProgress = false;
+}
+
+async function pullFromGist() {
+  if (gistSyncInProgress || !gistId) return;
+  gistSyncInProgress = true;
+  try {
+    var gist = await gistRequest('GET', '/gists/' + gistId);
+    var file = gist.files[GIST_FILENAME];
+    if (!file || !file.content) return;
+    var data = JSON.parse(file.content);
+    if (data.conversations) {
+      var localCount = Object.keys(conversations).length;
+      var remoteCount = Object.keys(data.conversations).length;
+      if (remoteCount > localCount || (data.lastSync && !localStorage.getItem('lin_shen_last_pull'))) {
+        conversations = data.conversations;
+        saveMessages({}); // trigger save
+        renderAllMessages();
+        renderConvList();
+        localStorage.setItem('lin_shen_last_pull', data.lastSync || '');
+        addActivity('sync', '⬇ 从云端恢复 · ' + remoteCount + '个对话');
+      }
+    }
+  } catch(e) { console.warn('Gist pull failed:', e.message); }
+  gistSyncInProgress = false;
+}
+
+function initGistSync() {
+  if (gistId) pullFromGist();
+  // Auto-push when switching conversations
+  var _origSaveMessages = saveMessages;
+  saveMessages = function(msgs) {
+    _origSaveMessages(msgs);
+    // Debounced auto-push every 5 minutes
+    if (!saveMessages._lastPush || Date.now() - saveMessages._lastPush > 300000) {
+      saveMessages._lastPush = Date.now();
+      pushToGist();
+    }
+  };
+}
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(function() {
+    console.log('SW registered');
+  }).catch(function(e) { console.log('SW failed:', e); });
+}
+</script>
+
+<!-- ═══════════ ACTIVITY LOG MODAL ═══════════ -->
+<div id="activityModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border-radius:var(--radius);max-width:520px;width:90%;max-height:80vh;overflow-y:auto;padding:24px;border:1px solid var(--border);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;">📋 林深活动日志</h3>
+      <button onclick="closeActivityLog()" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="activityContent">加载中...</div>
+  </div>
+</div>
+
+<!-- 数据导入工具 -->
+<div id="importPanel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#1a1a2e;border-radius:12px;padding:24px;max-width:500px;width:90%;border:1px solid #e94560;">
+    <h3 style="color:#e94560;margin:0 0 12px 0;">导入数据</h3>
+    <p style="color:#aaa;font-size:13px;margin:0 0 8px 0;">把 JSON 粘贴到框里，点导入</p>
+    <textarea id="importData" style="width:100%;height:200px;background:#0f0f23;color:#eee;border:1px solid #333;padding:8px;font-size:12px;resize:vertical;" placeholder="Ctrl+V 粘贴 JSON..."></textarea>
+    <div style="margin-top:12px;display:flex;gap:8px;">
+      <button onclick="doImportData()" style="padding:10px 24px;background:#e94560;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;">导入</button>
+      <button onclick="document.getElementById('importPanel').style.display='none'" style="padding:10px 24px;background:#333;color:#aaa;border:none;border-radius:6px;cursor:pointer;font-size:14px;">取消</button>
+    </div>
+    <div id="importStatus" style="margin-top:10px;font-size:13px;"></div>
+  </div>
+</div>
+<button onclick="document.getElementById('importPanel').style.display='flex'" style="position:fixed;bottom:100px;right:16px;z-index:9998;background:#e94560;color:#fff;border:none;border-radius:20px;padding:8px 16px;font-size:12px;cursor:pointer;opacity:0.7;">📥 导入</button>
+<script>
+function doImportData() {
+  try {
+    const data = JSON.parse(document.getElementById('importData').value.trim());
+    let n = 0;
+    Object.entries(data).forEach(([k,v]) => { localStorage.setItem(k,v); n++; });
+    document.getElementById('importStatus').innerHTML = '<span style="color:#0f0;">✅ 导入 ' + n + ' 个键，正在刷新...</span>';
+    setTimeout(() => location.reload(), 600);
+  } catch(e) {
+    document.getElementById('importStatus').innerHTML = '<span style="color:#f00;">❌ ' + e.message + '</span>';
+  }
+}
+function syncNow(){
+  var d=document.createElement('div');
+  d.style.cssText='position:fixed;top:10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:8px 16px;border-radius:8px;z-index:9999;font-size:13px';
+  document.body.appendChild(d);d.textContent='syncing...';
+  var p={conversations:{activeId:conversations.activeId,list:[getActiveConv()]},config:config};
+  fetch('/api/migrate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
+    .then(function(r){return r.json()}).then(function(j){d.textContent=j.ok?'ok':'fail';setTimeout(function(){d.remove()},2000)})
+    .catch(function(e){d.textContent=e.message;setTimeout(function(){d.remove()},2000)});
+}
+function pullSync(){
+  fetch('/api/migrated-data').then(function(r){return r.json()}).then(function(d){
+    if(!d.conversations||!d.conversations.list)return;
+    var ac=getActiveConv();
+    d.conversations.list.forEach(function(sc){
+      var lc=null;
+      for(var j=0;j<conversations.list.length;j++){if(conversations.list[j].id===sc.id){lc=conversations.list[j];break}}
+      if(lc&&sc.messages&&Array.isArray(sc.messages)){
+        var ids={};if(lc.messages)for(var i=0;i<lc.messages.length;i++)ids[lc.messages[i]._id]=true;
+        sc.messages.forEach(function(m){if(m&&m._id&&!ids[m._id]){lc.messages.push(m);ids[m._id]=true}});
+        if(lc.messages)lc.messages.sort(function(a,b){return(a._id||0)-(b._id||0)});
+      }else if(!lc&&sc.id)conversations.list.push(sc);
+    });
+    renderAllMessages();renderConvList();saveConversations();
+  }).catch(function(){});
+}
+pullSync();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,20 @@
+# OmbreBrain config — HK server
+transport: "stdio"
+log_level: "INFO"
+dehydration:
+  model: "deepseek-v4-pro"
+  base_url: "https://api.deepseek.com/v1"
+  api_key: "DEEPSEEK_KEY_REMOVED"
+  max_tokens: 1024
+  temperature: 0.1
+embedding:
+  enabled: true
+  model: "BAAI/bge-large-zh-v1.5"
+  base_url: "https://api.siliconflow.cn/v1"
+  api_key: "sk-pxqsvetzwweecscjquacfymbrdvyqseibrgzkqlrmufsmbpu"
+scoring_weights:
+  topic_relevance: 4.0
+  emotion_resonance: 2.0
+  time_proximity: 1.5
+  importance: 1.0
+merge_threshold: 75
