@@ -236,6 +236,8 @@ body {
 @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
 .error-msg { color:var(--danger); font-size:12px; margin-top:4px; display:none; }
 .error-msg.show { display:block; }
+
+#importPanel,button[onclick*="importPanel"]{display:none !important}
 </style>
 </head>
 <body>
@@ -2074,7 +2076,7 @@ async function sendHeartbeatGreeting(idleMinutes) {
 applyAppearance();
 updateMemoryStatus();
 renderAllMessages();
-renderConvList();
+renderConvList();setTimeout(function(){pullSync()},1500);
 renderCalendar();
 updateGreeting();
 tickClock();
