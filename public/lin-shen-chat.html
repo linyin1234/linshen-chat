@@ -755,7 +755,7 @@ function searchMessages() {
   for (var r = 0; r < Math.min(results.length, 30); r++) {
     var res = results[r];
     var preview = (res.msg.content || '').substring(0, 50);
-    var html = '<div class="conv-item" onclick="switchConversation(\'' + res.conv.id + '\')" style="padding:8px 14px;">';
+    var html = '<div class="conv-item" onclick="scrollToMessage(\'' + res.conv.id + '\',\'' + (res.msg._id||'') + '\')" data-msgid="' + (res.msg._id||'') + '" style="padding:8px 14px;">';
     html += '<div class="conv-name" style="font-size:12px;">' + escapeHtml(res.conv.name) + '<span style="color:var(--text-dim);font-size:10px;">' + (res.msg.time||'') + '</span></div>';
     html += '<div class="conv-preview">' + escapeHtml(preview) + '</div></div>';
     list.innerHTML += html;
@@ -882,8 +882,52 @@ function renderCalendar() {
   }
   $('calGrid').innerHTML = html;
 }
-function calPrevMonth() { calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
-function calNextMonth() { calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
+function calPrevMonth() { calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar();
+// Auto-fix search to use scrollToMessage
+setTimeout(function(){
+  var origSearch = searchMessages;
+  searchMessages = function(){
+    origSearch();
+    setTimeout(function(){
+      var items = document.querySelectorAll('#convList .conv-item');
+      items.forEach(function(item){
+        var oc = item.getAttribute('onclick');
+        if(!oc || oc.indexOf('switchConversation')<0) return;
+        var m = oc.match(/'([^']+)'/);
+        if(!m) return;
+        item.onclick = function(){
+          var cid = m[1];
+          var mid = item.getAttribute('data-msgid') || '';
+          scrollToMessage(cid, mid);
+        };
+      });
+    }, 50);
+  };
+}, 2000);
+ }
+function calNextMonth() { calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar();
+// Auto-fix search to use scrollToMessage
+setTimeout(function(){
+  var origSearch = searchMessages;
+  searchMessages = function(){
+    origSearch();
+    setTimeout(function(){
+      var items = document.querySelectorAll('#convList .conv-item');
+      items.forEach(function(item){
+        var oc = item.getAttribute('onclick');
+        if(!oc || oc.indexOf('switchConversation')<0) return;
+        var m = oc.match(/'([^']+)'/);
+        if(!m) return;
+        item.onclick = function(){
+          var cid = m[1];
+          var mid = item.getAttribute('data-msgid') || '';
+          scrollToMessage(cid, mid);
+        };
+      });
+    }, 50);
+  };
+}, 2000);
+ }
 
 // Clock
 var clockIsAnalog = false;
@@ -2090,6 +2134,28 @@ updateMemoryStatus();
 renderAllMessages();
 renderConvList();setTimeout(function(){pullSync()},1500);
 renderCalendar();
+// Auto-fix search to use scrollToMessage
+setTimeout(function(){
+  var origSearch = searchMessages;
+  searchMessages = function(){
+    origSearch();
+    setTimeout(function(){
+      var items = document.querySelectorAll('#convList .conv-item');
+      items.forEach(function(item){
+        var oc = item.getAttribute('onclick');
+        if(!oc || oc.indexOf('switchConversation')<0) return;
+        var m = oc.match(/'([^']+)'/);
+        if(!m) return;
+        item.onclick = function(){
+          var cid = m[1];
+          var mid = item.getAttribute('data-msgid') || '';
+          scrollToMessage(cid, mid);
+        };
+      });
+    }, 50);
+  };
+}, 2000);
+
 updateGreeting();
 tickClock();
 setInterval(tickClock, 1000);
