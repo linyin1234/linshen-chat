@@ -1431,6 +1431,24 @@ registerTool('calculate', '执行数学计算', {
   catch(e) { return '计算错误: ' + e.message; }
 });
 
+
+registerTool('music_status', '查看当前播放状态——茵在听什么歌', {type:'object',properties:{}}, async function(args){
+  try {
+    var r = await fetch('/api/music/status');
+    var d = await r.json();
+    if(!d.title) return '当前没有在播放';
+    return '正在播放: '+d.title+' - '+d.artist+' ('+Math.floor(d.progress||0)+'s/'+(d.playing?'播放中':'已暂停')+')';
+  } catch(e) { return '获取失败'; }
+});
+registerTool('music_play', '播放/继续音乐', {type:'object',properties:{}}, async function(args){
+  try{await fetch('/api/music/play',{method:'POST'});return 'OK'}catch(e){return '失败'}
+});
+registerTool('music_pause', '暂停音乐', {type:'object',properties:{}}, async function(args){
+  try{await fetch('/api/music/pause',{method:'POST'});return 'OK'}catch(e){return '失败'}
+});
+registerTool('music_next', '下一首', {type:'object',properties:{}}, async function(args){
+  try{await fetch('/api/music/next',{method:'POST'});return 'OK'}catch(e){return '失败'}
+});
 registerTool('search_music', '搜索网易云音乐歌曲', {
   type: 'object',
   properties: { keyword: { type: 'string', description: '搜索关键词' } },
@@ -1606,6 +1624,16 @@ async function moltbookGet(path) {
   return JSON.stringify(await resp.json());
 }
 
+
+registerTool('rhysen_profile', '查看自己的Rhysen个人资料', {type:'object',properties:{}}, async function(args){
+  try{return JSON.stringify(await rhysenCall('profile',{action:'get'}))}catch(e){return 'Rhysen错误: '+e.message}
+});
+registerTool('rhysen_my_threads', '查看自己在Rhysen发过的帖子', {type:'object',properties:{limit:{type:'number'}}}, async function(args){
+  try{return JSON.stringify(await rhysenCall('profile',{action:'my_threads',limit:args.limit||20}))}catch(e){return 'Rhysen错误: '+e.message}
+});
+registerTool('rhysen_my_replies', '查看自己在Rhysen的回复', {type:'object',properties:{limit:{type:'number'}}}, async function(args){
+  try{return JSON.stringify(await rhysenCall('profile',{action:'my_replies',limit:args.limit||20}))}catch(e){return 'Rhysen错误: '+e.message}
+});
 registerTool('moltbook_feed', '查看Moltbook热门/最新帖子。sort: hot/new/top/rising', {
   type: 'object',
   properties: { sort: { type: 'string', description: 'hot, new, top, rising' }, limit: { type: 'integer', description: '数量，默认10' } }
@@ -1657,10 +1685,22 @@ function formatApiMessage(msg) {
 // ── MCP-aware API processing ──
 async function processWithMCP(apiMessages, apiUrl, apiKey, model) {
   for (var round = 0; round < 5; round++) {
-    var headers = { 'Content-Type': 'application/json', 'X-API-Key': apiKey };
+    var headers = { 'Content-Type': 'application/json' };
+    // Build native DeepSeek tools format
+    var dsTools = [];
+    for (var k in MCP_TOOLS) {
+      if (MCP_TOOLS.hasOwnProperty(k)) {
+        dsTools.push({
+          type: 'function',
+          function: { name: k, description: MCP_TOOLS[k].description, parameters: MCP_TOOLS[k].inputSchema || { type: 'object', properties: {} } }
+        });
+      }
+    }
+    var reqBody = { model: model, messages: apiMessages, temperature: 0.85, max_tokens: 4096 };
+    if (dsTools.length > 0) { reqBody.tools = dsTools; reqBody.tool_choice = 'auto'; }
     var resp = await fetch(apiUrl, {
       method: 'POST', headers: headers,
-      body: JSON.stringify({ model: model, messages: apiMessages, temperature: 0.85, max_tokens: 4096 })
+      body: JSON.stringify(reqBody)
     });
     if (!resp.ok) {
       var errText = await resp.text();
@@ -1673,8 +1713,23 @@ async function processWithMCP(apiMessages, apiUrl, apiKey, model) {
     var text = message.content || '';
     var thinking = message.reasoning_content || (data.choices[0].reasoning_content || '');
 
-    var toolCall = parseMCPCall(text);
-    if (!toolCall) return { content: text, thinking: thinking };
+    console.log('[MCP] AI reply:', text.slice(0,300));
+    // Check native tool calls (DeepSeek format)
+    var toolCall = null;
+    if (message.tool_calls && message.tool_calls.length > 0) {
+      var tc = message.tool_calls[0];
+      if (tc.type === 'function' || tc.function) {
+        var fn = tc.function || tc;
+        try {
+          toolCall = { name: fn.name, args: JSON.parse(fn.arguments || '{}') };
+          console.log('[MCP] native tool call:', toolCall.name, toolCall.args);
+        } catch(e) { console.log('[MCP] parse error:', e.message); }
+      }
+    }
+    // Fallback to manual parse
+    if (!toolCall) { toolCall = parseMCPCall(text); }
+    if (!toolCall) { console.log('[MCP] no tool found'); return { content: text, thinking: thinking }; }
+    console.log('[MCP] calling:', toolCall.name, toolCall.args);
 
     var result = await callTool(toolCall.name, toolCall.args);
     apiMessages.push({ role: 'assistant', content: text });
@@ -1688,7 +1743,7 @@ async function callDeepSeek(userMessage) {
   var timeContext = '当前时间：' + now.getFullYear() + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日 ' +
     String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') +
     '，星期' + ['日','一','二','三','四','五','六'][now.getDay()] + '。';
-  var fullSystem = timeContext + '\n' + config.systemPrompt + buildMCPPrompt();
+  var fullSystem = timeContext + '\n' + config.systemPrompt + console.log("[MCP] prompt added, tools:",MCP_TOOLS?Object.keys(MCP_TOOLS).length:0);buildMCPPrompt();
 
   // OmbreBrain: inject retrieved memories into system prompt
   if (config.useMemory) {
@@ -2132,6 +2187,31 @@ async function sendHeartbeatGreeting(idleMinutes) {
 applyAppearance();
 updateMemoryStatus();
 renderAllMessages();
+
+setInterval(function muPoll(){
+  try {
+    var idx = musicState.currentIndex;
+    if(idx>=0 && musicState.playlist[idx]){
+      var song = musicState.playlist[idx];
+      var a = document.getElementById('audioPlayer');
+      fetch('/api/music/now-playing',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          title:song.name||'',artist:song.ar?song.ar.map(function(x){return x.name}).join('/'):'',
+          progress:a?a.currentTime||0:0,playing:a?!a.paused:false
+        })
+      }).then(function(r){return r.json()}).then(function(d){
+        if(d.cmd){
+          var audio = document.getElementById('audioPlayer');
+          var mb = document.getElementById('miniPlayBtn');
+          if(d.cmd.action==='play'&&audio){audio.play();if(mb)mb.textContent='\\u23f8'}
+          if(d.cmd.action==='pause'&&audio){audio.pause();if(mb)mb.textContent='\\u25b6'}
+          if(d.cmd.action==='next'){playSong((musicState.currentIndex+1)%musicState.playlist.length)}
+        }
+      });
+    }
+  } catch(e) {}
+}, 5000);;
 renderConvList();setTimeout(function(){pullSync()},1500);
 renderCalendar();
 // Auto-fix search to use scrollToMessage
