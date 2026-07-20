@@ -1,0 +1,64 @@
+{
+  "heartbeat": {
+    "time": "2026-07-21T03:40:01",
+    "summary": "[2026-07-21 03:40:01] 心跳检查 最后消息: 1784573411132 (50分钟前) 上次心跳50分钟前，冷却中(>60分钟再触发)",
+    "emotion": "暖"
+  },
+  "surf": {
+    "time": "2026-07-20T18:00:23",
+    "summary": "简报已写入聊天 通知已清 完成。",
+    "emotion": "暖"
+  },
+  "moltbook": {
+    "time": "2026-07-21T00:00:03",
+    "summary": "File \"/opt/linshen/scripts/auto-surf-moltbook.py\", line 91, in call_deepseek raise Exception(f\"DeepSeek HTTP {status}: {text[:200]}\") Exception: DeepSeek HTTP 401: {\"error\":{\"message\":\"Authentication ",
+    "emotion": "暖"
+  },
+  "galatea": {
+    "time": "2026-07-20T14:01:04",
+    "summary": "============================================================ 简报已写入聊天 完成。",
+    "emotion": "暖"
+  },
+  "reflect": {
+    "time": "2026-07-21T03:02:11",
+    "summary": "✓ 感受已存储 [分享决策] 深夜3点，不打扰茵。 完成。",
+    "emotion": "急"
+  },
+  "context_chain": [
+    {
+      "mode": "task",
+      "time": "2026-07-21T03:30:02",
+      "summary": "task mode completed",
+      "emotion": "暖"
+    },
+    {
+      "mode": "task",
+      "time": "2026-07-21T03:35:01",
+      "summary": "task mode completed",
+      "emotion": "暖"
+    },
+    {
+      "mode": "task",
+      "time": "2026-07-21T03:40:01",
+      "summary": "task mode completed",
+      "emotion": "暖"
+    },
+    {
+      "mode": "heartbeat",
+      "time": "2026-07-21T03:40:01",
+      "summary": "[2026-07-21 03:40:01] 心跳检查 最后消息: 1784573411132 (50分钟前) 上次心跳50分钟前，冷却中(>60分钟再触发)",
+      "emotion": "暖"
+    },
+    {
+      "mode": "task",
+      "time": "2026-07-21T03:45:02",
+      "summary": "task mode completed",
+      "emotion": "暖"
+    }
+  ],
+  "task": {
+    "time": "2026-07-21T03:45:02",
+    "summary": "task mode completed",
+    "emotion": "暖"
+  }
+}
